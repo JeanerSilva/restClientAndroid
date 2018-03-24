@@ -57,6 +57,7 @@ public class MainActivity extends AppCompatActivity {
                             myConnection.setRequestProperty("User-Agent", "my-rest-app-v0.1");
                             if (myConnection.getResponseCode() == 200) {
                                 Log.d(TAG, "CODE 200" );
+
                                 InputStream responseBody = myConnection.getInputStream();
                                 InputStreamReader responseBodyReader =
                                         new InputStreamReader(responseBody, "UTF-8");
@@ -93,7 +94,13 @@ public class MainActivity extends AppCompatActivity {
                                 Log.d(TAG, "codigo diferente de 200: " );
                             }
 
-                        } catch (IOException e) {
+                        } catch (final IOException e) {
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    restRestultText.setText(e.getMessage());
+                                }
+                            });
                             Log.e(TAG, e.getMessage());
                             e.printStackTrace();
                         }
