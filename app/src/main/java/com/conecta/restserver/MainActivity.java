@@ -4,6 +4,10 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -36,14 +40,28 @@ import java.util.List;
 
 import javax.net.ssl.HttpsURLConnection;
 
-public class MainActivity extends FragmentActivity {
+public class MainActivity extends FragmentActivity implements SensorEventListener {
 
     String TAG = "RestClient";
     private Button g;
     private TextView t;
+    private TextView acell, acelldisp;
+    private EditText dist;
     private LocationManager locationManager;
     private LocationListener listener;
+    private final String baseURL = "https://coliconwg.appspot.com/";
+    private final String entity = "moto";
+    private final String deletePosString = "deletepos";
+    private final String publishPosString = "publish";
+    private final String pullPosString = "pull";
+    private final String publishAlertString = "alertpublish";
+    private final String pullAlertString = "alertpull";
 
+    private Sensor acellSensor;
+    private SensorManager SM;
+    Float x = 0.0f;
+    Float y = 0.0f;
+    Float z = 0.0f;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,15 +70,23 @@ public class MainActivity extends FragmentActivity {
 
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
         t = findViewById(R.id.textView);
+        acell = findViewById(R.id.acell);
+        acelldisp = findViewById(R.id.acelldisp);
         g = findViewById(R.id.button);
+        dist = findViewById(R.id.dist);
 
-        Button restGetButton = findViewById(R.id.restGetButton);
+        SM = (SensorManager) getSystemService(SENSOR_SERVICE);
+        acellSensor = SM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        SM.registerListener(this, acellSensor, SensorManager.SENSOR_DELAY_NORMAL);
+
+
+        final Button pullPosButton = findViewById(R.id.pullPosButton);
         Button sendDataButton = findViewById(R.id.sendDataButton);
         Button deleteButton = findViewById(R.id.deleteButton);
         final ListView trackerList = findViewById(R.id.lista);
 
-        final EditText restUrlText = findViewById(R.id.restUrlText);
-        restUrlText.setText("https://coliconwg.appspot.com/pull?entity=moto");
+        //final EditText restUrlText = findViewById(R.id.restUrlText);
+        //restUrlText.setText( baseURL + pullPosString + "?entity=" + entity);
         final List<TrackerPos> trackerPosList = new ArrayList<>();
         final ArrayAdapter<TrackerPos> adapter = new ArrayAdapter<TrackerPos>(this,
                 android.R.layout.simple_list_item_1, trackerPosList);
@@ -81,10 +107,7 @@ public class MainActivity extends FragmentActivity {
                 b.putDouble("longitude", Double.parseDouble(position[1]));
                 intent.putExtras(b);
                 startActivity(intent);
-
-
             }
-
         });
 
         deleteButton.setOnClickListener(new View.OnClickListener() {
@@ -95,13 +118,12 @@ public class MainActivity extends FragmentActivity {
                         Log.e(TAG, "Delete" );
                         URL url = null;
                         try {
-                            url = new URL("https://coliconwg.appspot.com/delete?entity=moto");
-
+                            url = new URL(baseURL + deletePosString + "?entity=" + entity);
                         } catch (final MalformedURLException e) {
                             Log.e(TAG, "eRRO" );
                             Log.e(TAG, e.getMessage());
-                            e.printStackTrace();                        }
-
+                            e.printStackTrace();
+                        }
                         // Create connection
                         try {
                             Log.e(TAG, url.toString());
@@ -113,10 +135,16 @@ public class MainActivity extends FragmentActivity {
 
                             if (myConnection.getResponseCode() == 200) {
                                 Log.e(TAG, "CODE 200" );
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        pullPosButton.performClick();
+                                    }
+                                });
+
                             } else {
                                 Log.e(TAG, "codigo diferente de 200: " );
                             }
-
                         } catch (final IOException e) {
                             Log.e(TAG, e.getMessage());
                             e.printStackTrace();
@@ -132,14 +160,12 @@ public class MainActivity extends FragmentActivity {
                 AsyncTask.execute(new Runnable() {
                     @Override
                     public void run() {
-                        // final TextView restRestultText = (TextView) findViewById(R.id.restResultText);
-                        Log.e(TAG, "SendData" );
-
-                        String pos = "123890";
-
+                        String pos = "-15.4,-48.2";
+                        Log.e(TAG, "SendData - pos:"  + pos);
                         URL url = null;
                         try {
-                             url = new URL("https://coliconwg.appspot.com/publish?pos="+ pos +"&entity=moto");
+                             url = new URL(baseURL + publishPosString + "?pos=" + pos + "&entity=" + entity );
+                             Log.e(TAG, "sendDataButton - URL: " + url);
                         } catch (final MalformedURLException e) {
                             Log.e(TAG, "eRRO" );
                             Log.e(TAG, e.getMessage());
@@ -153,6 +179,12 @@ public class MainActivity extends FragmentActivity {
                             Log.e(TAG, "\nSending request to URL : " + myConnection);
                             if (myConnection.getResponseCode() == 200) {
                                 Log.e(TAG, "CODE 200" );
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        pullPosButton.performClick();
+                                    }
+                                });
                             } else {
                                 Log.e(TAG, "codigo diferente de 200: " );
                             }
@@ -167,18 +199,15 @@ public class MainActivity extends FragmentActivity {
         });
 
 
-        restGetButton.setOnClickListener(new View.OnClickListener() {
+        pullPosButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 AsyncTask.execute(new Runnable() {
                     @Override
                     public void run() {
-                       // final TextView restRestultText = (TextView) findViewById(R.id.restResultText);
-                        Log.e(TAG, "GET " );
+                        Log.e(TAG, "pullPosButton " );
                         URL url = null;
                         try {
-                            url = new URL(restUrlText.getText().toString());
-                           // url = new URL("https://coliconwg.appspot.com/");
-
+                            url = new URL(baseURL + pullPosString + "?entity=" + entity);
                         } catch (final MalformedURLException e) {
                             Log.e(TAG, "eRRO" );
                             Log.e(TAG, e.getMessage());
@@ -204,9 +233,6 @@ public class MainActivity extends FragmentActivity {
                                 JsonReader jsonReader = new JsonReader(responseBodyReader);
 
                                 TrackerPos trackerPos;
-                                jsonReader.beginObject();
-                                String key = jsonReader.nextName();
-                                Log.e(TAG, "key: " + key);
                                 jsonReader.beginArray();
                                 while (jsonReader.hasNext()) {
                                     trackerPos = readerTrackerPos(jsonReader);
@@ -221,8 +247,6 @@ public class MainActivity extends FragmentActivity {
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
-                                        //restRestultText.setText(listacompleta);
-                                       // adapter.clear();
                                         adapter.notifyDataSetChanged();
                                     }
                                 });
@@ -243,9 +267,10 @@ public class MainActivity extends FragmentActivity {
         listener = new LocationListener() {
             @Override
             public void onLocationChanged(Location location) {
+
                 t.setText("\n " + location.getLongitude() + " " + location.getLatitude());
-               final String pos = location.getLatitude()+ ", " + location.getLongitude();
-                Log.e("LOG", location.getLongitude() + " " + location.getLatitude());
+               final String pos = location.getLatitude()+ "," + location.getLongitude();
+                Log.e("LOG", " onLocationChanged - longitude: " + location.getLongitude() + ". latitude: " + location.getLatitude());
                 AsyncTask.execute(new Runnable() {
                     @Override
                     public void run() {
@@ -254,7 +279,7 @@ public class MainActivity extends FragmentActivity {
 
                         URL url = null;
                         try {
-                            url = new URL("https://coliconwg.appspot.com/publish?pos="+ pos +"&entity=moto");
+                            url = new URL(baseURL + publishPosString + "?pos=" + pos + "&entity=" + entity );
                         } catch (final MalformedURLException e) {
                             Log.e(TAG, "eRRO" );
                             Log.e(TAG, e.getMessage());
@@ -268,6 +293,12 @@ public class MainActivity extends FragmentActivity {
                             Log.e(TAG, "\nSending request to URL : " + myConnection);
                             if (myConnection.getResponseCode() == 200) {
                                 Log.e(TAG, "CODE 200" );
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        pullPosButton.performClick();
+                                    }
+                                });
                             } else {
                                 Log.e(TAG, "codigo diferente de 200: " );
                             }
@@ -278,27 +309,21 @@ public class MainActivity extends FragmentActivity {
 
                     }
                 });
-
-
-
-
-
-
             }
 
             @Override
             public void onStatusChanged(String s, int i, Bundle bundle) {
-                Log.e("LOG", s + " " + i);
+                Log.e("LOG", "onStatusChanged s:" + s + ". i: " + i);
             }
 
             @Override
             public void onProviderEnabled(String s) {
-
+                Log.e("LOG", "onProviderEnabled s:" + s);
             }
 
             @Override
             public void onProviderDisabled(String s) {
-
+                Log.e("LOG", "onProviderDisabled s:" + s);
                 Intent i = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
                 startActivity(i);
             }
@@ -321,10 +346,12 @@ public class MainActivity extends FragmentActivity {
 
     void configure_button(){
         // first check for permissions
+        Log.e(TAG, "configure_button");
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION,Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.INTERNET}
                         ,10);
+                Log.e(TAG, "111");
             }
             return;
         }
@@ -332,8 +359,8 @@ public class MainActivity extends FragmentActivity {
         g.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                //noinspection MissingPermission
-                locationManager.requestLocationUpdates("gps", 1000, 0, listener);
+                Log.e(TAG, "onClick configure_button");
+                locationManager.requestLocationUpdates("gps", 1000, Integer.parseInt(dist.getText().toString()), listener);
             }
         });
     }
@@ -356,4 +383,73 @@ public class MainActivity extends FragmentActivity {
         return new TrackerPos(pos, time);
     }
 
+    @Override
+    public void onSensorChanged(final SensorEvent event) {
+
+        final Float _x = event.values[0];
+        final Float _y = event.values[1];
+        final Float _z = event.values[2];
+        acelldisp.setText("X: " + _x + ", y: " + _y + ", z: " + _z);
+
+        if (x == 0.0f) {
+            x = _x;
+            y = _y;
+            z = _z;
+        } else {
+            if (x - _x > 0.6f && !dist.getText().toString().contains("0") ) {
+                x = _x;
+                y = _y;
+                z = _z;
+                AsyncTask.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        String pos = "-15.4,-48.2";
+                        Log.e(TAG, "SendData - pos:" + pos);
+                        URL url = null;
+                        try {
+                            //https://coliconwg.appspot.com/alertpublish?pos=-15.1,-48.30&giro=true&mov=true
+                            url = new URL(baseURL + publishAlertString + "?pos=" + pos + "&giro=true&mov=false");
+                            Log.e(TAG, "sendDataButton - URL: " + url);
+                        } catch (final MalformedURLException e) {
+                            Log.e(TAG, "eRRO");
+                            Log.e(TAG, e.getMessage());
+                            e.printStackTrace();
+                        }
+                        try {
+                            Log.e(TAG, url.toString());
+                            HttpsURLConnection myConnection =
+                                    (HttpsURLConnection) url.openConnection();
+                            myConnection.setRequestProperty("User-Agent", "my-rest-app-v0.1");
+                            myConnection.setRequestMethod("GET");
+                            Log.e(TAG, "\nSending request to URL : " + myConnection);
+                            if (myConnection.getResponseCode() == 200) {
+                                Log.e(TAG, "CODE 200");
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        acell.setText("X: " + _x + ", y: " + _y + ", z: " + _z);
+                                    }
+                                });
+                            } else {
+                                Log.e(TAG, "codigo diferente de 200: ");
+                            }
+                        } catch (final IOException e) {
+                            Log.e(TAG, e.getMessage());
+                            e.printStackTrace();
+                        }
+
+                    }
+                });
+
+            }
+            else {
+               // Log.e(TAG,"varia;áo menor que 1");
+            }
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+    }
 }
