@@ -37,7 +37,7 @@ import javax.net.ssl.HttpsURLConnection;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
 
-    String TAG = "RestClient";
+    String TAG = "RestMain";
     private Button g;
     private TextView t;
     private TextView acell, acelldisp;
@@ -45,12 +45,18 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private LocationManager locationManager;
     private LocationListener listener;
     private final String baseURL = "https://coliconwg.appspot.com/";
+
     private final String entity = "moto";
-    private final String deletePosString = "deletepos";
-    private final String publishPosString = "publish";
-    private final String pullPosString = "pull";
+    private final String deletePosString = "posdelete";
+    private final String publishPosString = "pospublish";
+    private final String pullPosString = "pospull";
+
+    ArrayList<String> alertEntities = new ArrayList<>();
+    private final String entityAlert = "motoalert";
     private final String publishAlertString = "alertpublish";
     private final String pullAlertString = "alertpull";
+    private final String alertDeleteString = "alertdelete";
+
     String posListener = "";
 
 
@@ -64,36 +70,45 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Log.e(TAG, "onCreate ");
+        Log.d(TAG, "onCreate ");
+
+        alertEntities.add("alertmoto");
+        alertEntities.add("alertcarro");
+        alertEntities.add("alert");
+        alertEntities.add("unknowalert");
+
+        g = findViewById(R.id.button);
+        t = findViewById(R.id.textView);
 
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        t = findViewById(R.id.textView);
         acell = findViewById(R.id.acell);
         acelldisp = findViewById(R.id.acelldisp);
-        g = findViewById(R.id.button);
+
         dist = findViewById(R.id.dist);
 
         SM = (SensorManager) getSystemService(SENSOR_SERVICE);
         acellSensor = SM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         SM.registerListener(this, acellSensor, SensorManager.SENSOR_DELAY_NORMAL);
 
-        final Button pullAlertButton = findViewById(R.id.alertButton);
+        final Button callAlertActivity = findViewById(R.id.alertButton);
         final Button pullPosButton = findViewById(R.id.pullPosButton);
         Button sendDataButton = findViewById(R.id.sendDataButton);
         Button deleteButton = findViewById(R.id.deleteButton);
 
         final ListView trackerList = findViewById(R.id.lista);
         final List<TrackerPos> trackerPosList = new ArrayList<>();
-        final ArrayAdapter<TrackerPos> adapter = new ArrayAdapter<TrackerPos>(this,
-                android.R.layout.simple_list_item_1, trackerPosList);
-        trackerList.setAdapter(adapter);
+
+        final TrackerAdapter adapterTracker = new TrackerAdapter(this,
+                R.layout.activity_layout_list_tracker, trackerPosList);
+        trackerList.setAdapter(adapterTracker);
+
         trackerList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-                Log.e(TAG, "i: " + i);
+                Log.d(TAG, "i: " + i);
                 TrackerPos selectedTrack = (TrackerPos) trackerList.getAdapter().getItem(i);
                 String pos = selectedTrack.getPos();
-                Log.e(TAG, "pos: " + pos);
+                Log.d(TAG, "pos: " + pos);
                 Intent intent = new Intent(MainActivity.this, MapsActivity.class);
                 String position[] = pos.split(",");
                 Bundle b = new Bundle();
@@ -104,44 +119,31 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             }
         });
 
-        final ListView listaAlerta = findViewById(R.id.listaAlerta);
-        final List<Alert> alertaList = new ArrayList<>();
-        final ArrayAdapter<Alert> adapterAlert = new ArrayAdapter<Alert>(this,
-                android.R.layout.simple_list_item_1, alertaList);
-        listaAlerta.setAdapter(adapterAlert);
-        listaAlerta.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                Log.e(TAG, "Pos i: " + id);
-            }
-        });
-
-
-        deleteButton.setOnClickListener(new View.OnClickListener() {
+      deleteButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 AsyncTask.execute(new Runnable() {
                     @Override
                     public void run() {
-                        Log.e(TAG, "Delete");
+                        Log.d(TAG, "Delete");
                         URL url = null;
                         try {
                             url = new URL(baseURL + deletePosString + "?entity=" + entity);
                         } catch (final MalformedURLException e) {
-                            Log.e(TAG, "eRRO");
-                            Log.e(TAG, e.getMessage());
+                            Log.d(TAG, "eRRO");
+                            Log.d(TAG, e.getMessage());
                             e.printStackTrace();
                         }
                         // Create connection
                         try {
-                            Log.e(TAG, url.toString());
+                            Log.d(TAG, url.toString());
                             HttpsURLConnection myConnection =
                                     (HttpsURLConnection) url.openConnection();
                             myConnection.setRequestProperty("User-Agent", "my-rest-app-v0.1");
                             myConnection.setRequestMethod("GET");
-                            Log.e(TAG, "\nSending request to URL : " + myConnection);
+                            Log.d(TAG, "\nSending request to URL : " + myConnection);
 
                             if (myConnection.getResponseCode() == 200) {
-                                Log.e(TAG, "CODE 200");
+                                Log.d(TAG, "CODE 200");
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
@@ -150,10 +152,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                                 });
 
                             } else {
-                                Log.e(TAG, "codigo diferente de 200: ");
+                                Log.d(TAG, "codigo diferente de 200: ");
                             }
                         } catch (final IOException e) {
-                            Log.e(TAG, e.getMessage());
+                            Log.d(TAG, e.getMessage());
                             e.printStackTrace();
                         }
 
@@ -167,26 +169,26 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 AsyncTask.execute(new Runnable() {
                     @Override
                     public void run() {
-                        String pos = "-15.4,-48.2";
-                        Log.e(TAG, "SendData - pos:" + pos);
+                        //String pos = "-15.4,-48.2";
+                        Log.d(TAG, "SendData - pos:" + posListener);
                         URL url = null;
                         try {
-                            url = new URL(baseURL + publishPosString + "?pos=" + pos + "&entity=" + entity);
-                            Log.e(TAG, "sendDataButton - URL: " + url);
+                            url = new URL(baseURL + publishPosString + "?pos=" + posListener + "&entity=" + entity);
+                            Log.d(TAG, "sendDataButton - URL: " + url);
                         } catch (final MalformedURLException e) {
-                            Log.e(TAG, "eRRO");
-                            Log.e(TAG, e.getMessage());
+                            Log.d(TAG, "eRRO");
+                            Log.d(TAG, e.getMessage());
                             e.printStackTrace();
                         }
                         try {
-                            Log.e(TAG, url.toString());
+                            Log.d(TAG, url.toString());
                             HttpsURLConnection myConnection =
                                     (HttpsURLConnection) url.openConnection();
                             myConnection.setRequestProperty("User-Agent", "my-rest-app-v0.1");
                             myConnection.setRequestMethod("GET");
-                            Log.e(TAG, "\nSending request to URL : " + myConnection);
+                            Log.d(TAG, "\nSending request to URL : " + myConnection);
                             if (myConnection.getResponseCode() == 200) {
-                                Log.e(TAG, "CODE 200");
+                                Log.d(TAG, "CODE 200");
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
@@ -194,10 +196,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                                     }
                                 });
                             } else {
-                                Log.e(TAG, "codigo diferente de 200: ");
+                                Log.d(TAG, "codigo diferente de 200: ");
                             }
                         } catch (final IOException e) {
-                            Log.e(TAG, e.getMessage());
+                            Log.d(TAG, e.getMessage());
                             e.printStackTrace();
                         }
 
@@ -207,69 +209,18 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         });
 
 
-        pullAlertButton.setOnClickListener(new View.OnClickListener() {
+        callAlertActivity.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                AsyncTask.execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        Log.e(TAG, "pullPosButton ");
-                        URL url = null;
-                        try {
-                            url = new URL(baseURL + pullAlertString );
-                        } catch (final MalformedURLException e) {
-                            Log.e(TAG, "eRRO");
-                            Log.e(TAG, e.getMessage());
-                            e.printStackTrace();
-                        }
+                Intent intent = new Intent(MainActivity.this, AlertActivity.class);
+                Bundle b = new Bundle();
+                b.putString("baseURL", baseURL);
+                b.putString("publishAlertString", publishAlertString);
+                b.putString("pullAlertString", pullAlertString);
+                b.putString("pullAlertString", pullAlertString);
+                b.putStringArrayList("alertEntities", alertEntities);
 
-                        // Create connection
-                        try {
-                            Log.e(TAG, url.toString());
-                            HttpsURLConnection myConnection =
-                                    (HttpsURLConnection) url.openConnection();
-                            myConnection.setRequestProperty("User-Agent", "my-rest-app-v0.1");
-                            myConnection.setRequestMethod("GET");
-                            Log.e(TAG, "\nSending request to URL : " + myConnection);
-
-                            myConnection.addRequestProperty("entity", "moto");
-                            if (myConnection.getResponseCode() == 200) {
-                                Log.e(TAG, "CODE 200");
-                                String lista = "";
-                                alertaList.clear();
-                                InputStream responseBody = myConnection.getInputStream();
-                                InputStreamReader responseBodyReader =
-                                        new InputStreamReader(responseBody, "UTF-8");
-                                JsonReader jsonReader = new JsonReader(responseBodyReader);
-
-                                Alert alert;
-                                jsonReader.beginArray();
-                                while (jsonReader.hasNext()) {
-                                    alert = readerAlert(jsonReader);
-                                    alertaList.add(alert);
-                                    lista = lista + alert.toString();
-                                }
-                                final String listacompleta = lista;
-                                jsonReader.endArray();
-                                jsonReader.close();
-                                myConnection.disconnect();
-
-                                runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        adapterAlert.notifyDataSetChanged();
-                                    }
-                                });
-                            } else {
-                                Log.e(TAG, "codigo diferente de 200: ");
-                            }
-
-                        } catch (final IOException e) {
-                            Log.e(TAG, e.getMessage());
-                            e.printStackTrace();
-                        }
-
-                    }
-                });
+                intent.putExtras(b);
+                startActivity(intent);
             }
         });
 
@@ -278,28 +229,28 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 AsyncTask.execute(new Runnable() {
                     @Override
                     public void run() {
-                        Log.e(TAG, "pullPosButton ");
+                        Log.d(TAG, "pullPosButton ");
                         URL url = null;
                         try {
                             url = new URL(baseURL + pullPosString + "?entity=" + entity);
                         } catch (final MalformedURLException e) {
-                            Log.e(TAG, "eRRO");
-                            Log.e(TAG, e.getMessage());
+                            Log.d(TAG, "eRRO");
+                            Log.d(TAG, e.getMessage());
                             e.printStackTrace();
                         }
 
                         // Create connection
                         try {
-                            Log.e(TAG, url.toString());
+                            Log.d(TAG, url.toString());
                             HttpsURLConnection myConnection =
                                     (HttpsURLConnection) url.openConnection();
                             myConnection.setRequestProperty("User-Agent", "my-rest-app-v0.1");
                             myConnection.setRequestMethod("GET");
-                            Log.e(TAG, "\nSending request to URL : " + myConnection);
+                            Log.d(TAG, "\nSending request to URL : " + myConnection);
 
                             myConnection.addRequestProperty("entity", "moto");
                             if (myConnection.getResponseCode() == 200) {
-                                Log.e(TAG, "CODE 200");
+                                Log.d(TAG, "CODE 200");
                                 String lista = "";
                                 trackerPosList.clear();
                                 InputStream responseBody = myConnection.getInputStream();
@@ -322,15 +273,15 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
-                                        adapter.notifyDataSetChanged();
+                                        adapterTracker.notifyDataSetChanged();
                                     }
                                 });
                             } else {
-                                Log.e(TAG, "codigo diferente de 200: ");
+                                Log.d(TAG, "codigo diferente de 200: ");
                             }
 
                         } catch (final IOException e) {
-                            Log.e(TAG, e.getMessage());
+                            Log.d(TAG, e.getMessage());
                             e.printStackTrace();
                         }
 
@@ -344,30 +295,30 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             public void onLocationChanged(Location location) {
                 t.setText("\n " + location.getLongitude() + " " + location.getLatitude());
                 posListener = location.getLatitude() + "," + location.getLongitude();
-                Log.e("LOG", " onLocationChanged - longitude: " + location.getLongitude() + ". latitude: " + location.getLatitude());
+                Log.d("LOG", " onLocationChanged - longitude: " + location.getLongitude() + ". latitude: " + location.getLatitude());
                 AsyncTask.execute(new Runnable() {
                     @Override
                     public void run() {
                         // final TextView restRestultText = (TextView) findViewById(R.id.restResultText);
-                        Log.e(TAG, "SendData");
+                        Log.d(TAG, "SendData");
 
                         URL url = null;
                         try {
                             url = new URL(baseURL + publishPosString + "?pos=" + posListener + "&entity=" + entity);
                         } catch (final MalformedURLException e) {
-                            Log.e(TAG, "eRRO");
-                            Log.e(TAG, e.getMessage());
+                            Log.d(TAG, "eRRO");
+                            Log.d(TAG, e.getMessage());
                             e.printStackTrace();
                         }
                         try {
-                            Log.e(TAG, url.toString());
+                            Log.d(TAG, url.toString());
                             HttpsURLConnection myConnection =
                                     (HttpsURLConnection) url.openConnection();
                             myConnection.setRequestProperty("User-Agent", "my-rest-app-v0.1");
                             myConnection.setRequestMethod("GET");
-                            Log.e(TAG, "\nSending request to URL : " + myConnection);
+                            Log.d(TAG, "\nSending request to URL : " + myConnection);
                             if (myConnection.getResponseCode() == 200) {
-                                Log.e(TAG, "CODE 200");
+                                Log.d(TAG, "CODE 200");
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
@@ -375,10 +326,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                                     }
                                 });
                             } else {
-                                Log.e(TAG, "codigo diferente de 200: ");
+                                Log.d(TAG, "codigo diferente de 200: ");
                             }
                         } catch (final IOException e) {
-                            Log.e(TAG, e.getMessage());
+                            Log.d(TAG, e.getMessage());
                             e.printStackTrace();
                         }
 
@@ -388,17 +339,17 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
             @Override
             public void onStatusChanged(String s, int i, Bundle bundle) {
-                Log.e("LOG", "onStatusChanged s:" + s + ". i: " + i);
+                Log.d("LOG", "onStatusChanged s:" + s + ". i: " + i);
             }
 
             @Override
             public void onProviderEnabled(String s) {
-                Log.e("LOG", "onProviderEnabled s:" + s);
+                Log.d("LOG", "onProviderEnabled s:" + s);
             }
 
             @Override
             public void onProviderDisabled(String s) {
-                Log.e("LOG", "onProviderDisabled s:" + s);
+                Log.d("LOG", "onProviderDisabled s:" + s);
                 Intent i = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
                 startActivity(i);
             }
@@ -421,46 +372,17 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     void configure_button() {
         // first check for permissions
-        Log.e(TAG, "configure_button");
+        Log.d(TAG, "configure_button");
         g.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Log.e(TAG, "onClick configure_button");
-                if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-                        && ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions((Activity) getApplicationContext(),
-                            new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                           11);
-                    return;
-                }
+                Log.d(TAG, "onClick configure_button");
                 locationManager.requestLocationUpdates("gps", 1000, Integer.parseInt(dist.getText().toString()), listener);
             }
         });
     }
 
-    public Alert readerAlert (JsonReader reader) throws IOException {
-        String pos = null;
-        String giro = null;
-        String mov = null;
-        String time = null;
-        reader.beginObject();
-        while (reader.hasNext()) {
-            String name = reader.nextName();
-            if (name.equals("pos")) {
-                pos = reader.nextString();
-            } else if (name.equals("giro")) {
-                giro = reader.nextString();
-            } else if (name.equals("mov")) {
-                mov = reader.nextString();
-            } else if (name.equals("time")) {
-                time = reader.nextString();
-            } else {
-                reader.skipValue();
-            }
-        }
-        reader.endObject();
-        return new Alert(pos, giro, mov, time);
-    }
+
 
     public TrackerPos readerTrackerPos(JsonReader reader) throws IOException {
         String pos = null;
@@ -497,47 +419,46 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 x = _x;
                 y = _y;
                 z = _z;
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        acell.setText("X: " + _x + ", y: " + _y + ", z: " + _z);
+                    }
+                });
                 AsyncTask.execute(new Runnable() {
                     @Override
                     public void run() {
-                        /*
-                        Location currentBestLocation = null;
-                        Log.e(TAG, "bestLocation - latitude " + currentBestLocation.getLatitude()
-                                                  + " - longitude " + currentBestLocation.getLongitude());
-                        */
+
 
                         String pos = "-0.0,0.0";
-                        Log.e(TAG, "SendData - pos:" + posListener);
+                        Log.d(TAG, "SendData - pos:" + posListener);
                         URL url = null;
                         try {
                             if (posListener.isEmpty()) posListener = pos;
-                            url = new URL(baseURL + publishAlertString + "?pos=" + posListener + "&giro=true&mov=false");
-                            Log.e(TAG, "sendDataButton - URL: " + url);
+                            url = new URL(baseURL + publishAlertString + "?pos=" + posListener + "&giro=true&entity=" + entityAlert);
+                            Log.d(TAG, "sendDataButton - URL: " + url);
                         } catch (final MalformedURLException e) {
-                            Log.e(TAG, "eRRO");
-                            Log.e(TAG, e.getMessage());
+                            Log.d(TAG, "eRRO");
+                            Log.d(TAG, e.getMessage());
                             e.printStackTrace();
                         }
                         try {
-                            Log.e(TAG, url.toString());
+                            Log.d(TAG, url.toString());
                             HttpsURLConnection myConnection =
                                     (HttpsURLConnection) url.openConnection();
                             myConnection.setRequestProperty("User-Agent", "my-rest-app-v0.1");
                             myConnection.setRequestMethod("GET");
-                            Log.e(TAG, "\nSending request to URL : " + myConnection);
+                            Log.d(TAG, "\nSending request to URL : " + myConnection);
+                            /*
                             if (myConnection.getResponseCode() == 200) {
-                                Log.e(TAG, "CODE 200");
-                                runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        acell.setText("X: " + _x + ", y: " + _y + ", z: " + _z);
-                                    }
-                                });
+                                Log.d(TAG, "CODE 200");
+
                             } else {
-                                Log.e(TAG, "codigo diferente de 200: ");
+                                Log.d(TAG, "codigo diferente de 200: ");
                             }
+                            */
                         } catch (final IOException e) {
-                            Log.e(TAG, e.getMessage());
+                            Log.d(TAG, e.getMessage());
                             e.printStackTrace();
                         }
 
@@ -545,9 +466,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 });
 
             } else {
-                // Log.e(TAG,"varia;áo menor que 1");
+                // Log.d(TAG,"varia;áo menor que 1");
             }
         }
+
     }
 
     @Override

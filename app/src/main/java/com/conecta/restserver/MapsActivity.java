@@ -24,10 +24,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         Bundle b = getIntent().getExtras();
         //int value = -1; // or other values
-        if (b != null)
+        if (b != null) {
             latitude = b.getDouble("latitude");
-        longitude = b.getDouble("longitude");
-        mapFragment.getMapAsync(this);
+            longitude = b.getDouble("longitude");
+            mapFragment.getMapAsync(this);
+        }
     }
 
 
