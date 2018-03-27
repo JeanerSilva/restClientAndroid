@@ -1,56 +1,31 @@
 package com.conecta.restserver;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
-import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
-import android.os.AsyncTask;
-import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.JsonReader;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Switch;
 import android.widget.TextView;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.net.ssl.HttpsURLConnection;
-
-public class MainActivity extends AppCompatActivity implements SensorEventListener, CustomCallback {
+public class MainActivity extends AppCompatActivity implements CustomCallback {
 
     String TAG = "RestMain";
-    private Button g;
-    private TextView t;
-    private TextView acell, acelldisp;
-    private EditText dist, gpsTime;
-    private LocationManager locationManager;
-    private LocationListener listener;
+    private Button startService;
+    private EditText gpsDist, gpsTime, timerInterval, giroSense;
     private final String baseURL = "https://coliconwg.appspot.com/";
 
     private final String entity = "moto";
@@ -69,9 +44,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     Map<String, String> postData = new HashMap<>();
     Button pullPosButton;
     Button callAlertActivity;
-    Button sendDataButton;
+    Button stopService;
     Switch switchGiro, switchGps;
-    Boolean switchGiroState;
 
     List<TrackerPos> trackerPosList = new ArrayList<>();
     TrackerAdapter adapterTracker;
@@ -120,18 +94,19 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                         }
                     });
                     break;
-
+                case CONFIG_GIRO_PULL:
+                    List<String> statusGiro = (List<String>) object;
+                    switchGiro.setChecked(statusGiro.get(0).toString().equals("on") ? true : false);
+                    break;
+                case CONFIG_GPS_PULL:
+                    List<String> statusGps = (List<String>) object;
+                    switchGps.setChecked(statusGps.get(0).toString().equals("on") ? true : false);
+                    break;
                 default:
                     break;
             }
         }
     };
-
-    private Sensor acellSensor;
-    private SensorManager SM;
-    Float x = 0.0f;
-    Float y = 0.0f;
-    Float z = 0.0f;
 
     @Override
     public void onResume() {
@@ -145,58 +120,55 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         setContentView(R.layout.activity_main);
         Log.d(TAG, "onCreate ");
 
+        Log.d(TAG, "Busca GPS Status ");
+        new HttpPostAsyncTask(postData, RequestType.CONFIG_GPS_PULL, callback)
+                .execute(baseURL + configString + "?entity=" + entityConfig + "gps" + "&action=pull");
+        Log.d(TAG, "Busca Giro Status ");
+        new HttpPostAsyncTask(postData, RequestType.CONFIG_GIRO_PULL, callback)
+                .execute(baseURL + configString + "?entity=" + entityConfig + "giro" + "&action=pull");
+
         alertEntities.add("motoalert");
         alertEntities.add("alertcarro");
         alertEntities.add("unknowalert");
 
-        g = findViewById(R.id.button);
-        t = findViewById(R.id.textView);
-
-        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        acell = findViewById(R.id.acell);
-        acelldisp = findViewById(R.id.acelldisp);
-
-        dist = findViewById(R.id.dist);
+        gpsDist = findViewById(R.id.dist);
         gpsTime = findViewById(R.id.gpsTimeTxt);
-
-        //SM = (SensorManager) getSystemService(SENSOR_SERVICE);
-        //acellSensor = SM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-        //SM.registerListener(this, acellSensor, SensorManager.SENSOR_DELAY_NORMAL);
+        timerInterval = findViewById(R.id.timerInterval);
+        giroSense = findViewById(R.id.giroSenseTxt);
 
         callAlertActivity = findViewById(R.id.alertButton);
         pullPosButton = findViewById(R.id.pullPosButton);
-        sendDataButton = findViewById(R.id.sendDataButton);
+        stopService = findViewById(R.id.stopServiceButton);
+        startService = findViewById(R.id.startServiceButton);
         Button deleteButton = findViewById(R.id.deleteButton);
 
         switchGiro = findViewById(R.id.giroAlertSwitsh);
         switchGps = findViewById(R.id.switchGps);
-        //switchGiro.setChecked(false);
+        switchGiro.setChecked(true);
+
+        /*
+        Log.e(TAG, "Start Service");
+        Intent serviceIntent = new Intent(MainActivity.this, AlertIntentService.class);
+        serviceIntent.putExtra("timerStatus", "on");
+        serviceIntent.putExtra("timerInterval", timerInterval.toString());
+        serviceIntent.putExtra("gpsDist", gpsDist.toString());
+        serviceIntent.putExtra("gpsTime", gpsTime.toString());
+        startService(serviceIntent);
+        */
 
         switchGiro.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 if (isChecked) {
-                    Log.e(TAG, "Start Service");
-                    startService(new Intent(MainActivity.this, AlertIntentService.class));
-
-
                     Log.d(TAG, "Giro ON ");
                     postData.clear();
                     postData.put("entity", entity);
-                    HttpPostAsyncTask task =
-                            new HttpPostAsyncTask(postData, RequestType.CONFIG_PUBLISH, callback);
-                    task.execute(baseURL + configString + "?entity=" + entityConfig + "giro" + "&action=publish&status=on");
-
-
+                    new HttpPostAsyncTask(postData, RequestType.CONFIG_PUBLISH, callback)
+                            .execute(baseURL + configString + "?entity=" + entityConfig + "giro" + "&action=publish&status=on");
                 } else {
-                    Log.e(TAG, "Stop Service");
-                    stopService(new Intent(MainActivity.this, AlertIntentService.class));
-
                     Log.d(TAG, "Giro OFF ");
-                    postData.clear();
-                    postData.put("entity", entity);
-                    HttpPostAsyncTask task =
-                            new HttpPostAsyncTask(postData, RequestType.CONFIG_PUBLISH, callback);
-                    task.execute(baseURL + configString + "?entity=" + entityConfig + "giro" + "&action=publish&status=off");
+                    new HttpPostAsyncTask(postData, RequestType.CONFIG_PUBLISH, callback)
+                            .execute(baseURL + configString + "?entity=" + entityConfig + "giro" + "&action=publish&status=off");
+
                 }
             }
         });
@@ -206,21 +178,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 if (isChecked) {
                     //g.performClick();
                     Log.d(TAG, "GPS ON ");
-                    postData.clear();
-                    postData.put("entity", entity);
-                    HttpPostAsyncTask task =
-                            new HttpPostAsyncTask(postData, RequestType.CONFIG_PUBLISH, callback);
-                    task.execute(baseURL + configString + "?entity=" + entityConfig + "gps" + "&action=publish&status=on");
+                    new HttpPostAsyncTask(postData, RequestType.CONFIG_PUBLISH, callback)
+                            .execute(baseURL + configString + "?entity=" + entityConfig + "gps" + "&action=publish&status=on");
                 } else {
-                    //SM = (SensorManager) getSystemService(SENSOR_SERVICE);
-                    //acellSensor = SM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-
                     Log.d(TAG, "GPS OFF ");
-                    postData.clear();
-                    postData.put("entity", entity);
-                    HttpPostAsyncTask task =
-                            new HttpPostAsyncTask(postData, RequestType.CONFIG_PUBLISH, callback);
-                    task.execute(baseURL + configString + "?entity=" + entityConfig + "gps" + "&action=publish&status=off");
+                    new HttpPostAsyncTask(postData, RequestType.CONFIG_PUBLISH, callback)
+                            .execute(baseURL + configString + "?entity=" + entityConfig + "gps" + "&action=publish&status=off");
                 }
             }
         });
@@ -252,40 +215,45 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         deleteButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                postData.clear();
-                postData.put("entity", entity);
-                HttpPostAsyncTask task =
-                        new HttpPostAsyncTask(postData, RequestType.REFRESH_POS, callback);
-                task.execute(baseURL + deletePosString + "?entity=" + entity);
+            new HttpPostAsyncTask(postData, RequestType.REFRESH_POS, callback)
+                       .execute(baseURL + deletePosString + "?entity=" + entity);
             }
         });
 
-        sendDataButton.setOnClickListener(new View.OnClickListener() {
+        stopService.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-
-                String provider = LocationManager.GPS_PROVIDER;
-                if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-                        && ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(MainActivity.this,
-                            new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                            10);
-                    ActivityCompat.requestPermissions(MainActivity.this,
-                            new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
-                            10);
-                    return;
-                }
-                Location location = locationManager.getLastKnownLocation(provider);
-                posListener = String.valueOf(location.getLatitude()+ "," + location.getLongitude());
-                t.setText(posListener);
-                Log.e(TAG, "update posListener" + posListener);
-                postData.clear();
-                postData.put("entity", entity);
-                new HttpPostAsyncTask(postData, RequestType.REFRESH_POS, callback)
-                        .execute(baseURL + publishPosString + "?pos=" + posListener + "&entity=" + entity);
-
+             Log.e(TAG, "Stop Service");
+             stopService(new Intent(MainActivity.this, AlertIntentService.class));
+                Log.d(TAG, "Giro OFF ");
+                new HttpPostAsyncTask(postData, RequestType.CONFIG_PUBLISH, callback)
+                        .execute(baseURL + configString + "?entity=" + entityConfig + "giro" + "&action=publish&status=off");
+                Log.d(TAG, "GPS OFF ");
+                new HttpPostAsyncTask(postData, RequestType.CONFIG_PUBLISH, callback)
+                        .execute(baseURL + configString + "?entity=" + entityConfig + "gps" + "&action=publish&status=off");
+                Log.e(TAG, "Start Service");
+                Intent serviceIntent = new Intent(MainActivity.this, AlertIntentService.class);
+                serviceIntent.putExtra("timerStatus", "off");
+                serviceIntent.putExtra("timerInterval", timerInterval.getText().toString());
+                serviceIntent.putExtra("gpsDist", gpsDist.getText().toString());
+                serviceIntent.putExtra("gpsTime", gpsTime.getText().toString());
+                serviceIntent.putExtra("giroSense", giroSense.getText().toString());
+                startService(serviceIntent);
             }
         });
 
+
+        startService.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                Log.e(TAG, "Start Service");
+                Intent serviceIntent = new Intent(MainActivity.this, AlertIntentService.class);
+                serviceIntent.putExtra("timerStatus", "on");
+                serviceIntent.putExtra("timerInterval", timerInterval.getText().toString());
+                serviceIntent.putExtra("gpsDist", gpsDist.getText().toString());
+                serviceIntent.putExtra("gpsTime", gpsTime.getText().toString());
+                serviceIntent.putExtra("giroSense", giroSense.getText().toString());
+                startService(serviceIntent);
+            }
+        });
 
         callAlertActivity.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
@@ -312,120 +280,16 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             }
         });
 
-        listener = new LocationListener() {
-            @Override
-            public void onLocationChanged(Location location) {
-                t.setText(location.getLongitude() + " " + location.getLatitude());
-                posListener = location.getLatitude() + "," + location.getLongitude();
-                if (switchGps.isChecked()) {
-                    Log.d("LOG", " onLocationChanged - longitude: " + location.getLongitude() + ". latitude: " + location.getLatitude());
-                    postData.clear();
-                    postData.put("entity", entity);
-                    HttpPostAsyncTask task =
-                            new HttpPostAsyncTask(postData, RequestType.REFRESH_POS, callback);
-                    task.execute(baseURL + publishPosString + "?pos=" + posListener + "&entity=" + entity);
-                }
-            }
-
-            @Override
-            public void onStatusChanged(String s, int i, Bundle bundle) {
-                Log.d("LOG", "onStatusChanged s:" + s + ". i: " + i);
-            }
-
-            @Override
-            public void onProviderEnabled(String s) {
-                Log.d("LOG", "onProviderEnabled s:" + s);
-            }
-
-            @Override
-            public void onProviderDisabled(String s) {
-                Log.d("LOG", "onProviderDisabled s:" + s);
-                Intent i = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                startActivity(i);
-            }
-        };
-
-        configure_button();
-
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        switch (requestCode) {
-            case 10:
-                configure_button();
-                break;
-            default:
-                break;
+        if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                && ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(MainActivity.this,
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                    10);
+            ActivityCompat.requestPermissions(MainActivity.this,
+                    new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
+                    10);
+            return;
         }
-    }
-
-    void configure_button() {
-        // first check for permissions
-        Log.d(TAG, "configure_button");
-        g.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Log.d(TAG, "onClick configure_button");
-                if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-                        && ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(MainActivity.this,
-                            new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                            10);
-                    ActivityCompat.requestPermissions(MainActivity.this,
-                            new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
-                            10);
-                    return;
-                }
-                locationManager.requestLocationUpdates("gps", Integer.parseInt(gpsTime.getText().toString()), Integer.parseInt(dist.getText().toString()), listener);
-
-            }
-        });
-    }
-
-
-    @Override
-    public void onSensorChanged(final SensorEvent event) {
-       // if  (switchGiro.isChecked()) {
-       // if  (1 == 2) {
-            final Float _x = event.values[0];
-            final Float _y = event.values[1];
-            final Float _z = event.values[2];
-            acelldisp.setText("X: " + _x + ", y: " + _y + ", z: " + _z);
-
-            if (x == 0.0f) {
-                x = _x;
-                y = _y;
-                z = _z;
-            } else {
-                if ((x - _x > 1.0f || y - _y > 1.0f || z - _z > 1.0f)) {
-                    x = _x;
-                    y = _y;
-                    z = _z;
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            acell.setText("X: " + _x + ", y: " + _y + ", z: " + _z);
-                        }
-                    });
-                    sendDataButton.performClick();
-                    Log.e(TAG, "Send alerta giro" + posListener);
-                    postData.clear();
-                    postData.put("entity", entity);
-                    HttpPostAsyncTask task =
-                            new HttpPostAsyncTask(postData, RequestType.REFRESH_ALERT, callback);
-                    task.execute(baseURL + publishAlertString + "?pos=" + posListener + "&giro=true&entity=" + entityAlert);
-                } else {
-                    // Log.d(TAG,"varia;áo menor que 1");
-                }
-            }
-        //}
-
-    }
-
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-
     }
 
     @Override

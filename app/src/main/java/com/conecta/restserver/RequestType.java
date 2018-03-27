@@ -11,6 +11,7 @@ public enum RequestType  {
     CONFIG_PUBLISH,
     REFRESH_POS,
     REFRESH_ALERT,
+    ALERTS_PULL,
     ALERT_PULL;
 
 }

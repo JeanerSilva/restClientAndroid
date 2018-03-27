@@ -1,9 +1,7 @@
 package com.conecta.restserver;
 
-import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.JsonReader;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
@@ -11,12 +9,6 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.Spinner;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -106,9 +98,8 @@ public class AlertActivity extends AppCompatActivity implements AdapterView.OnIt
             public void onClick(View v) {
                 Map<String, String> postData = new HashMap<>();
                 postData.put("entity", "");
-                HttpPostAsyncTask task =
-                        new HttpPostAsyncTask(postData, RequestType.ALERT_PULL, callback);
-                task.execute(baseURL + pullAlertString + "?entity=" + spinnerAlert.getSelectedItem().toString());
+                new HttpPostAsyncTask(postData, RequestType.ALERT_PULL, callback)
+                        .execute(baseURL + pullAlertString + "?entity=" + spinnerAlert.getSelectedItem().toString());
 
             }
         });

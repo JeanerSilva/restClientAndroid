@@ -3,6 +3,9 @@ package com.conecta.restserver;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.IntentService;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.app.TaskStackBuilder;
 import android.content.Intent;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -16,93 +19,106 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 import android.widget.Toast;
+
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
-/**
- * An {@link IntentService} subclass for handling asynchronous task requests in
- * a service on a separate handler thread.
- * <p>
- * TODO: Customize class - update intent actions, extra parameters and static
- * helper methods.
- */
 public class AlertIntentService extends IntentService implements SensorEventListener, CustomCallback, LocationListener {
-    private Sensor acellSensor;
-    private SensorManager SM;
-    Float x = 0.0f;
-    Float y = 0.0f;
-    Float z = 0.0f;
-    String TAG = "Service Alert";
-    String posListener;
-    private LocationManager locationManager;
-    Map<String, String> postData = new HashMap<>();
     private final String entity = "moto";
-    private final String deletePosString = "posdelete";
     private final String publishPosString = "pospublish";
-    private final String pullPosString = "pospull";
     private final String entityAlert = "motoalert";
     private final String publishAlertString = "alertpublish";
     private final String pullAlertString = "alertpull";
-    private final String alertDeleteString = "alertdelete";
     private final String baseURL = "https://coliconwg.appspot.com/";
     private final String configString = "config";
     private final String entityConfig = "motoconfig";
+
+    private List<Alert> alertList = new ArrayList<>();
+    private int totalAlerts = 0;
+    private Sensor acellSensor;
+    private SensorManager SM;
+    Float x = 0.0f;Float y = 0.0f;Float z = 0.0f;
+    String TAG = "Service";
+    String posListener;
+    private LocationManager locationManager;
+    Map<String, String> postData = new HashMap<>();
     private boolean giroService = false;
     private boolean gpsService = false;
-    private LocationListener listener;
     public double latitude;
     public double longitude;
     public Criteria criteria;
     public String bestProvider;
     Timer timer;
+    String timerStatus;
+    String timerInterval;
+    String gpsDist;
+    String gpsTime;
+    String giroSense;
 
     CustomCallback callback = new CustomCallback() {
         @Override
         public void completionHandler(Boolean success, RequestType type, final Object object) {
             switch (type) {
                 case CONFIG_GIRO_PULL:
+                    Log.d(TAG, "CONFIG_GIRO_PULL" );
                     List<String> statusGiro = (List<String>) object;
-                    if (statusGiro.get(0).toString().equals("on")) {
-                        giroService = true;
-                    }
-                    if (statusGiro.get(0).toString().equals("off")) {
-                        giroService = false;
-                    }
-                    if (giroService) {
-                        Log.e(TAG, " Giro start");
-                        SM = (SensorManager) getSystemService(SENSOR_SERVICE);
-                        acellSensor = SM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-                        SM.registerListener(AlertIntentService.this, acellSensor, SensorManager.SENSOR_DELAY_NORMAL);
-                    } else {
-                        Log.e(TAG, " Giro stop");
-                        SM.unregisterListener(AlertIntentService.this);
-                    }
+                    String statusGiroString = statusGiro.get(0).toString();
+                    Log.e(TAG, "statusGiroString: " + statusGiroString);
+                    giroService = statusGiroString.equals("on") ? true : false;
                     break;
                 case CONFIG_GPS_PULL:
+                    Log.d(TAG, "CONFIG_GPS_PULL" );
                     List<String> statusGps = (List<String>) object;
-                    if (statusGps.get(0).toString().equals("on")) {
-                        gpsService = true;
-                    }
-                    if (statusGps.get(0).toString().equals("off")) {
-                        gpsService = false;
-                    }
-
-                    if (gpsService) {
-                        Log.e(TAG, " GPS start");
-
-                    } else {
-                        Log.e(TAG, " GPS stop");
-
-                    }
+                    String statusGpsString = statusGps.get(0).toString();
+                    Log.e(TAG, "statusGpsString: " + statusGpsString);
+                    gpsService = statusGpsString.equals("on") ? true : false;
                     break;
-                case REFRESH_POS:
+                case ALERT_PULL:
+                    Log.d(TAG, "ALERT_PULL" );
+                    totalAlerts = alertList.size();
+                    alertList.clear();
+                    alertList.addAll((List<Alert>) object);
+                    int newTotal = alertList.size();
 
+                    if (totalAlerts != newTotal) {
+                        Log.e(TAG,"Alertas alterou de " + totalAlerts + " para " + newTotal);
+
+                        NotificationCompat.Builder mBuilder =
+                                new NotificationCompat.Builder(AlertIntentService.this)
+                                        .setContentTitle("My notification")
+                                        .setContentText("Hello World!");
+                        // Creates an explicit intent for an Activity in your app
+                        Intent resultIntent = new Intent(AlertIntentService.this, ResultActivity.class);
+
+                        // The stack builder object will contain an artificial back stack for the
+                        // started Activity.
+                        // This ensures that navigating backward from the Activity leads out of
+                        // your application to the Home screen.
+                        TaskStackBuilder stackBuilder = TaskStackBuilder.create(AlertIntentService.this);
+                            // Adds the back stack for the Intent (but not the Intent itself)
+                        stackBuilder.addParentStack(ResultActivity.class);
+                            // Adds the Intent that starts the Activity to the top of the stack
+                        stackBuilder.addNextIntent(resultIntent);
+                        PendingIntent resultPendingIntent =
+                                stackBuilder.getPendingIntent(
+                                        0,
+                                        PendingIntent.FLAG_UPDATE_CURRENT
+                                );
+                        mBuilder.setContentIntent(resultPendingIntent);
+                        NotificationManager mNotificationManager =
+                                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                            // mId allows you to update the notification later on.
+                       // mNotificationManager.notify(mId, mBuilder.build());
+                    }
                     break;
                 default:
                     break;
@@ -111,44 +127,66 @@ public class AlertIntentService extends IntentService implements SensorEventList
     };
 
     public void setaGiroService (){
-        Log.d(TAG, "Giro ON ");
-        postData.clear();
-        postData.put("entity", entity);
-        HttpPostAsyncTask task =
-                new HttpPostAsyncTask(postData, RequestType.CONFIG_GIRO_PULL, callback);
-        task.execute(baseURL + configString + "?entity=" + entityConfig + "giro" + "&action=pull");
+        Log.d(TAG, "Busca Giro Status ");
+        new HttpPostAsyncTask(postData, RequestType.CONFIG_GIRO_PULL, callback)
+                .execute(baseURL + configString + "?entity=" + entityConfig + "giro" + "&action=pull");
     }
 
     public void setaGpsService (){
-        Log.d(TAG, "Giro ON ");
-        postData.clear();
-        postData.put("entity", entity);
-        HttpPostAsyncTask task =
-                new HttpPostAsyncTask(postData, RequestType.CONFIG_GPS_PULL, callback);
-        task.execute(baseURL + configString + "?entity=" + entityConfig + "gps" + "&action=pull");
+        Log.d(TAG, "Busca GPS Status ");
+        new HttpPostAsyncTask(postData, RequestType.CONFIG_GPS_PULL, callback)
+                .execute(baseURL + configString + "?entity=" + entityConfig + "gps" + "&action=pull");
+            }
+
+    private void buscaALertas (){
+        Log.d(TAG, "Busca Alertas ");
+        new HttpPostAsyncTask(postData, RequestType.ALERT_PULL, callback)
+                .execute(baseURL + pullAlertString + "?entity=" + entityAlert);
     }
 
     @SuppressLint("MissingPermission")
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        Log.d(TAG, "Serviço iniciado. onStartCommand()");
-        long TIME = (1000 * 3);
+        super.onStart(intent, startId);
+        Bundle extras = intent.getExtras();
+        timerStatus = extras.get("timerStatus").toString();
+        timerInterval = extras.get("timerInterval").toString();
+        gpsDist = extras.get("gpsDist").toString();
+        gpsTime = extras.get("gpsTime").toString();
+        giroSense = extras.get("giroSense").toString();
+
+        Log.d(TAG, "Serviço iniciado. onStartCommand() - timerInterval: " + timerInterval.toString() + ". timerStatus: " + timerStatus.toString());
+        long TIME = (Integer.valueOf(timerInterval.toString()));
 
         if (timer == null) {
             timer = new Timer();
-            TimerTask verificaGiroConfig = new TimerTask() {
-                @Override
-                public void run() {
-                    Log.d(TAG, "run Timer");
-                    setaGiroService();
-                    setaGpsService();
-                    if (gpsService) {
-                        new HttpPostAsyncTask(postData, RequestType.REFRESH_POS, callback)
-                                .execute(baseURL + publishPosString + "?pos=" + posListener + "&entity=" + entity);
+            if (timerStatus.toString().equals("on")) {
+                TimerTask verificaGiroConfig = new TimerTask() {
+                    @Override
+                    public void run() {
+                        Log.d(TAG, "run Timer");
+                        setaGiroService();
+                        setaGpsService();
+                        buscaALertas();
+                        if (giroService) {
+                            Log.e(TAG, " Giro start");
+                            SM = (SensorManager) getSystemService(SENSOR_SERVICE);
+                            acellSensor = SM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+                            SM.registerListener(AlertIntentService.this, acellSensor, SensorManager.SENSOR_DELAY_NORMAL);
+                        } else {
+                            Log.e(TAG, " Giro stop");
+                            if (SM != null) SM.unregisterListener(AlertIntentService.this);
+                        }
+                        if (gpsService) {
+                            new HttpPostAsyncTask(postData, RequestType.REFRESH_POS, callback)
+                                    .execute(baseURL + publishPosString + "?pos=" + posListener + "&entity=" + entity);
+                        }
                     }
-                }
-            };
-            timer.scheduleAtFixedRate(verificaGiroConfig, TIME, TIME);
+                };
+                timer.scheduleAtFixedRate(verificaGiroConfig, TIME, TIME);
+            } else {
+                timer.cancel();
+            }
         }
         getLocation();
         return startId;
@@ -164,7 +202,8 @@ public class AlertIntentService extends IntentService implements SensorEventList
         if (x == 0.0f) {
             x = _x;y = _y;z = _z;
         } else {
-            if ((x - _x > 1.0f || y - _y > 1.0f || z - _z > 1.0f)) {
+            Float sense = Float.parseFloat(giroSense.toString());
+            if ((x - _x > sense || y - _y > sense || z - _z > sense)) {
                 x = _x;y = _y;z = _z;
                 posListener = String.valueOf(latitude + "," + longitude);
                 Log.e(TAG, "Send alerta giro" + posListener);
@@ -178,17 +217,6 @@ public class AlertIntentService extends IntentService implements SensorEventList
 
     }
 
-
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-
-    }
-
-    @Override
-    public void completionHandler(Boolean success, RequestType type, Object object) {
-
-    }
-
     @Override
     public void onLocationChanged(Location location) {
         locationManager.removeUpdates(this);
@@ -198,57 +226,50 @@ public class AlertIntentService extends IntentService implements SensorEventList
     }
 
     @Override
-    public void onStatusChanged(String provider, int status, Bundle extras) {
-
-    }
-
-    @Override
-    public void onProviderEnabled(String provider) {
-
-    }
-
-    @Override
     public void onProviderDisabled(String provider) {
         Log.d("LOG", "onProviderDisabled");
         Intent i = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
         startActivity(i);
     }
 
-    public static boolean isLocationEnabled(Context context)
+    public boolean isLocationEnabled(Context context)
     {
-        //...............
+        Intent i = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+        startActivity(i);
         return true;
     }
 
+    @SuppressLint("MissingPermission")
     protected void getLocation() {
         if (isLocationEnabled(AlertIntentService.this)) {
             locationManager = (LocationManager)  this.getSystemService(Context.LOCATION_SERVICE);
             criteria = new Criteria();
             bestProvider = String.valueOf(locationManager.getBestProvider(criteria, true)).toString();
-
-            //You can still do this if you like, you might get lucky:
             Location location = locationManager.getLastKnownLocation(bestProvider);
             if (location != null) {
                 Log.e("TAG", "GPS is on");
                 latitude = location.getLatitude();
                 longitude = location.getLongitude();
                 Toast.makeText(AlertIntentService.this, "latitude:" + latitude + " longitude:" + longitude, Toast.LENGTH_SHORT).show();
-                //searchNearestPlace(voice2text);
             }
             else{
-                //This is what you need:
-                locationManager.requestLocationUpdates(bestProvider, 1000, 0, this);
+                locationManager.requestLocationUpdates(bestProvider, Integer.valueOf(gpsTime), Integer.valueOf(gpsDist), this);
             }
         }
         else
         {
             Toast.makeText(AlertIntentService.this, "You need to enable location", Toast.LENGTH_SHORT).show();
         }
-
-
     }
 
-
+    @Override
+    public void onStatusChanged(String provider, int status, Bundle extras) {}
+    @Override
+    public void onProviderEnabled(String provider) {}
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {}
+    @Override
+    public void completionHandler(Boolean success, RequestType type, Object object) {}
 
 
 

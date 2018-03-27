@@ -8,11 +8,12 @@
 
     <Button
         android:id="@+id/pullPosButton"
-        android:layout_width="51dp"
-        android:layout_height="49dp"
-        android:text="Pos"
-        tools:layout_editor_absoluteX="0dp"
-        tools:layout_editor_absoluteY="0dp" />
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Atualiza pos"
+        app:layout_constraintTop_toBottomOf="@+id/startServiceButton"
+        tools:layout_editor_absoluteX="0dp" />
 
     <ListView
         android:id="@+id/lista"
@@ -25,29 +26,31 @@
     </ListView>
 
     <Button
-        android:id="@+id/sendDataButton"
-        android:layout_width="47dp"
+        android:id="@+id/stopServiceButton"
+        android:layout_width="wrap_content"
         android:layout_height="47dp"
-        android:text="S"
-        app:layout_constraintStart_toEndOf="@+id/pullPosButton"
+        android:text="STOP SERVICE"
+        tools:layout_editor_absoluteX="0dp"
         tools:layout_editor_absoluteY="0dp" />
 
     <Button
         android:id="@+id/deleteButton"
-        android:layout_width="60dp"
-        android:layout_height="47dp"
-        android:text="CL"
-        app:layout_constraintStart_toEndOf="@+id/sendDataButton"
-        tools:layout_editor_absoluteY="0dp" />
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="CLear pos"
+        app:layout_constraintStart_toEndOf="@+id/pullPosButton"
+        app:layout_constraintTop_toBottomOf="@+id/startServiceButton" />
 
     <Button
-        android:id="@+id/button"
-        android:layout_width="68dp"
+        android:id="@+id/startServiceButton"
+        android:layout_width="wrap_content"
         android:layout_height="47dp"
         android:layout_centerHorizontal="true"
         android:layout_centerVertical="true"
-        android:text="Read"
-        app:layout_constraintStart_toEndOf="@+id/deleteButton"
+        android:layout_marginStart="20dp"
+        android:text="STARTSERVICE"
+        app:layout_constraintStart_toEndOf="@+id/stopServiceButton"
         tools:layout_editor_absoluteY="0dp" />
 
     <TextView
@@ -63,34 +66,6 @@
         app:layout_constraintTop_toBottomOf="@+id/switchGps"
         tools:layout_editor_absoluteX="8dp" />
 
-    <TextView
-        android:id="@+id/acell"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
-        android:layout_marginStart="24dp"
-        android:layout_marginTop="8dp"
-        android:gravity="center"
-        android:text="acell: "
-        android:textAppearance="@style/TextAppearance.AppCompat"
-        app:layout_constraintStart_toEndOf="@+id/giroAlertSwitsh"
-        app:layout_constraintTop_toBottomOf="@+id/acelldisp" />
-
-    <TextView
-        android:id="@+id/acelldisp"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
-        android:layout_marginTop="12dp"
-        android:gravity="center"
-        android:text="disp"
-        android:textAlignment="textStart"
-        android:textAppearance="@style/TextAppearance.AppCompat"
-        app:layout_constraintTop_toBottomOf="@+id/pullPosButton"
-        tools:layout_editor_absoluteX="16dp" />
-
     <EditText
         android:id="@+id/dist"
         android:layout_width="42dp"
@@ -104,23 +79,24 @@
         app:layout_constraintTop_toBottomOf="@+id/giroAlertSwitsh" />
 
 
-
     <Button
         android:id="@+id/alertButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
         android:text="Alert"
-        app:layout_constraintStart_toEndOf="@+id/button"
-        tools:layout_editor_absoluteY="0dp" />
+        app:layout_constraintStart_toEndOf="@+id/deleteButton"
+        app:layout_constraintTop_toBottomOf="@+id/startServiceButton" />
 
     <Switch
         android:id="@+id/giroAlertSwitsh"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="24dp"
         android:text="Alerta Giro"
-        app:layout_constraintTop_toBottomOf="@+id/acelldisp"
-        tools:layout_editor_absoluteX="0dp" />
+        app:layout_constraintTop_toBottomOf="@+id/pullPosButton"
+        tools:layout_editor_absoluteX="12dp" />
 
     <Switch
         android:id="@+id/switchGps"
@@ -159,6 +135,38 @@
         android:text="1000"
         app:layout_constraintStart_toEndOf="@+id/textView3"
         app:layout_constraintTop_toBottomOf="@+id/giroAlertSwitsh" />
+
+    <EditText
+        android:id="@+id/timerInterval"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        android:text="3000"
+        app:layout_constraintStart_toEndOf="@+id/startServiceButton"
+        tools:layout_editor_absoluteY="0dp" />
+
+    <EditText
+        android:id="@+id/giroSenseTxt"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="12dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        android:text="3.0f"
+        app:layout_constraintStart_toEndOf="@+id/textView4"
+        app:layout_constraintTop_toBottomOf="@+id/pullPosButton" />
+
+    <TextView
+        android:id="@+id/textView4"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="Sensibilidade:"
+        app:layout_constraintTop_toBottomOf="@+id/pullPosButton"
+        tools:layout_editor_absoluteX="122dp" />
 
 
 </android.support.constraint.ConstraintLayout>
