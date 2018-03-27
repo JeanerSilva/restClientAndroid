@@ -6,6 +6,9 @@ package com.conecta.restserver;
 
 public enum RequestType  {
     TRAKERPOS_PULL,
+    CONFIG_GIRO_PULL,
+    CONFIG_GPS_PULL,
+    CONFIG_PUBLISH,
     REFRESH_POS,
     REFRESH_ALERT,
     ALERT_PULL;

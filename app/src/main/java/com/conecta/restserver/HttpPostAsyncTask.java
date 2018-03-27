@@ -97,6 +97,29 @@ public class HttpPostAsyncTask extends AsyncTask<String, Void, Void> {
                       callback.completionHandler(true, type, alertaList);
                       Log.d (TAG, "alertaList: " + alertaList);
                       break;
+                     case CONFIG_GIRO_PULL:
+                         Log.d (TAG, "CONFIG_PULL" );
+                         final List<String> configGiroList = new ArrayList<>();
+                         jsonReader.beginArray();
+                         while (jsonReader.hasNext()) {
+                             configGiroList.add(jsonReader.nextString());
+                         }
+                         jsonReader.endArray();
+                         callback.completionHandler(true, type, configGiroList);
+                         Log.d (TAG, "alertaList: " + configGiroList);
+                         break;
+                     case CONFIG_GPS_PULL:
+                         Log.d (TAG, "CONFIG_GPS_PULL" );
+                         final List<String> configGpsList = new ArrayList<>();
+                         jsonReader.beginArray();
+                         while (jsonReader.hasNext()) {
+                             configGpsList.add(jsonReader.nextString());
+                         }
+                         jsonReader.endArray();
+                         callback.completionHandler(true, type, configGpsList);
+                         Log.d (TAG, "alertaList: " + configGpsList);
+                         break;
+
                   default:
                       break;
               }
