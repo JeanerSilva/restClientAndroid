@@ -1,6 +1,7 @@
 package com.conecta.restserver;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -23,25 +24,31 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.Switch;
 import android.widget.TextView;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
 import javax.net.ssl.HttpsURLConnection;
 
-public class MainActivity extends AppCompatActivity implements SensorEventListener {
+public class MainActivity extends AppCompatActivity implements SensorEventListener, CustomCallback {
 
     String TAG = "RestMain";
     private Button g;
     private TextView t;
     private TextView acell, acelldisp;
-    private EditText dist;
+    private EditText dist, gpsTime;
     private LocationManager locationManager;
     private LocationListener listener;
     private final String baseURL = "https://coliconwg.appspot.com/";
@@ -57,8 +64,56 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private final String pullAlertString = "alertpull";
     private final String alertDeleteString = "alertdelete";
 
-    String posListener = "";
+    Map<String, String> postData = new HashMap<>();
+    Button pullPosButton;
+    Button callAlertActivity;
+    Button sendDataButton;
+    Switch giroSwitsh, switchGps;
+    Boolean giroSwitshState;
 
+    List<TrackerPos> trackerPosList = new ArrayList<>();
+    TrackerAdapter adapterTracker;
+
+    String posListener = "0.0,0.0";
+    CustomCallback callback = new CustomCallback() {
+        @Override
+        public void completionHandler(Boolean success, RequestType type, final Object object) {
+            switch (type) {
+                case TRAKERPOS_PULL:
+                    runOnUiThread(new Runnable() {
+                        public void run() {
+                            trackerPosList.clear();
+                            trackerPosList.addAll((List<TrackerPos>) object);
+                            adapterTracker.notifyDataSetChanged();
+                        }
+                    });
+                    break;
+
+                case REFRESH_POS:
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Log.e(TAG, "REFRESH");
+                            pullPosButton.performClick();
+                        }
+                    });
+                    break;
+
+                case REFRESH_ALERT:
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Log.e(TAG, "REFRESH");
+                            callAlertActivity.performClick();
+                        }
+                    });
+                    break;
+
+                default:
+                    break;
+            }
+        }
+    };
 
     private Sensor acellSensor;
     private SensorManager SM;
@@ -67,14 +122,19 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     Float z = 0.0f;
 
     @Override
+    public void onResume() {
+        super.onResume();
+        pullPosButton.performClick();
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Log.d(TAG, "onCreate ");
 
-        alertEntities.add("alertmoto");
+        alertEntities.add("motoalert");
         alertEntities.add("alertcarro");
-        alertEntities.add("alert");
         alertEntities.add("unknowalert");
 
         g = findViewById(R.id.button);
@@ -85,23 +145,52 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         acelldisp = findViewById(R.id.acelldisp);
 
         dist = findViewById(R.id.dist);
+        gpsTime  = findViewById(R.id.gpsTimeTxt);
 
         SM = (SensorManager) getSystemService(SENSOR_SERVICE);
         acellSensor = SM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         SM.registerListener(this, acellSensor, SensorManager.SENSOR_DELAY_NORMAL);
 
-        final Button callAlertActivity = findViewById(R.id.alertButton);
-        final Button pullPosButton = findViewById(R.id.pullPosButton);
-        Button sendDataButton = findViewById(R.id.sendDataButton);
+        callAlertActivity = findViewById(R.id.alertButton);
+        pullPosButton = findViewById(R.id.pullPosButton);
+        sendDataButton = findViewById(R.id.sendDataButton);
         Button deleteButton = findViewById(R.id.deleteButton);
 
-        final ListView trackerList = findViewById(R.id.lista);
-        final List<TrackerPos> trackerPosList = new ArrayList<>();
+        giroSwitsh =  findViewById(R.id.giroAlertSwitsh);
+        switchGps =  findViewById(R.id.switchGps);
+        giroSwitsh.setChecked(false);
 
-        final TrackerAdapter adapterTracker = new TrackerAdapter(this,
+        giroSwitsh.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if (isChecked) {
+                    Log.e(TAG, "Start Service");
+                    startService(new Intent(MainActivity.this, AlertIntentService.class));
+                } else {
+                    Log.e(TAG, "Stop Service");
+                    stopService(new Intent(MainActivity.this, AlertIntentService.class));
+                }
+            }
+        });
+
+        switchGps.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if (isChecked) {
+                    g.performClick();
+                } else {
+                    //SM = (SensorManager) getSystemService(SENSOR_SERVICE);
+                    //acellSensor = SM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+                }
+            }
+        });
+
+        final ListView trackerList = findViewById(R.id.lista);
+
+
+        adapterTracker = new TrackerAdapter(this,
                 R.layout.activity_layout_list_tracker, trackerPosList);
         trackerList.setAdapter(adapterTracker);
 
+        //Abre o mapa
         trackerList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
@@ -119,92 +208,29 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             }
         });
 
-      deleteButton.setOnClickListener(new View.OnClickListener() {
+        deleteButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                AsyncTask.execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        Log.d(TAG, "Delete");
-                        URL url = null;
-                        try {
-                            url = new URL(baseURL + deletePosString + "?entity=" + entity);
-                        } catch (final MalformedURLException e) {
-                            Log.d(TAG, "eRRO");
-                            Log.d(TAG, e.getMessage());
-                            e.printStackTrace();
-                        }
-                        // Create connection
-                        try {
-                            Log.d(TAG, url.toString());
-                            HttpsURLConnection myConnection =
-                                    (HttpsURLConnection) url.openConnection();
-                            myConnection.setRequestProperty("User-Agent", "my-rest-app-v0.1");
-                            myConnection.setRequestMethod("GET");
-                            Log.d(TAG, "\nSending request to URL : " + myConnection);
-
-                            if (myConnection.getResponseCode() == 200) {
-                                Log.d(TAG, "CODE 200");
-                                runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        pullPosButton.performClick();
-                                    }
-                                });
-
-                            } else {
-                                Log.d(TAG, "codigo diferente de 200: ");
-                            }
-                        } catch (final IOException e) {
-                            Log.d(TAG, e.getMessage());
-                            e.printStackTrace();
-                        }
-
-                    }
-                });
+                postData.clear();
+                postData.put("entity", entity);
+                HttpPostAsyncTask task =
+                        new HttpPostAsyncTask(postData, RequestType.REFRESH_POS, callback);
+                task.execute(baseURL + deletePosString + "?entity=" + entity);
             }
         });
 
         sendDataButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                AsyncTask.execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        //String pos = "-15.4,-48.2";
-                        Log.d(TAG, "SendData - pos:" + posListener);
-                        URL url = null;
-                        try {
-                            url = new URL(baseURL + publishPosString + "?pos=" + posListener + "&entity=" + entity);
-                            Log.d(TAG, "sendDataButton - URL: " + url);
-                        } catch (final MalformedURLException e) {
-                            Log.d(TAG, "eRRO");
-                            Log.d(TAG, e.getMessage());
-                            e.printStackTrace();
-                        }
-                        try {
-                            Log.d(TAG, url.toString());
-                            HttpsURLConnection myConnection =
-                                    (HttpsURLConnection) url.openConnection();
-                            myConnection.setRequestProperty("User-Agent", "my-rest-app-v0.1");
-                            myConnection.setRequestMethod("GET");
-                            Log.d(TAG, "\nSending request to URL : " + myConnection);
-                            if (myConnection.getResponseCode() == 200) {
-                                Log.d(TAG, "CODE 200");
-                                runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        pullPosButton.performClick();
-                                    }
-                                });
-                            } else {
-                                Log.d(TAG, "codigo diferente de 200: ");
-                            }
-                        } catch (final IOException e) {
-                            Log.d(TAG, e.getMessage());
-                            e.printStackTrace();
-                        }
+                String provider = LocationManager.GPS_PROVIDER;
+                @SuppressLint("MissingPermission") Location location = locationManager.getLastKnownLocation(provider);
+                posListener = String.valueOf(location.getLatitude()+ "," + location.getLongitude());
+                t.setText(posListener);
+                Log.e(TAG, "update posListener" + posListener);
+                postData.clear();
+                postData.put("entity", entity);
+                HttpPostAsyncTask task =
+                        new HttpPostAsyncTask(postData, RequestType.REFRESH_POS, callback);
+                task.execute(baseURL + publishPosString + "?pos=" + posListener + "&entity=" + entity);
 
-                    }
-                });
             }
         });
 
@@ -218,7 +244,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 b.putString("pullAlertString", pullAlertString);
                 b.putString("pullAlertString", pullAlertString);
                 b.putStringArrayList("alertEntities", alertEntities);
-
                 intent.putExtras(b);
                 startActivity(intent);
             }
@@ -226,115 +251,28 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         pullPosButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                AsyncTask.execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        Log.d(TAG, "pullPosButton ");
-                        URL url = null;
-                        try {
-                            url = new URL(baseURL + pullPosString + "?entity=" + entity);
-                        } catch (final MalformedURLException e) {
-                            Log.d(TAG, "eRRO");
-                            Log.d(TAG, e.getMessage());
-                            e.printStackTrace();
-                        }
-
-                        // Create connection
-                        try {
-                            Log.d(TAG, url.toString());
-                            HttpsURLConnection myConnection =
-                                    (HttpsURLConnection) url.openConnection();
-                            myConnection.setRequestProperty("User-Agent", "my-rest-app-v0.1");
-                            myConnection.setRequestMethod("GET");
-                            Log.d(TAG, "\nSending request to URL : " + myConnection);
-
-                            myConnection.addRequestProperty("entity", "moto");
-                            if (myConnection.getResponseCode() == 200) {
-                                Log.d(TAG, "CODE 200");
-                                String lista = "";
-                                trackerPosList.clear();
-                                InputStream responseBody = myConnection.getInputStream();
-                                InputStreamReader responseBodyReader =
-                                        new InputStreamReader(responseBody, "UTF-8");
-                                JsonReader jsonReader = new JsonReader(responseBodyReader);
-
-                                TrackerPos trackerPos;
-                                jsonReader.beginArray();
-                                while (jsonReader.hasNext()) {
-                                    trackerPos = readerTrackerPos(jsonReader);
-                                    trackerPosList.add(trackerPos);
-                                    lista = lista + trackerPos.toString();
-                                }
-                                final String listacompleta = lista;
-                                jsonReader.endArray();
-                                jsonReader.close();
-                                myConnection.disconnect();
-
-                                runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        adapterTracker.notifyDataSetChanged();
-                                    }
-                                });
-                            } else {
-                                Log.d(TAG, "codigo diferente de 200: ");
-                            }
-
-                        } catch (final IOException e) {
-                            Log.d(TAG, e.getMessage());
-                            e.printStackTrace();
-                        }
-
-                    }
-                });
+                Log.d(TAG, "pullPosButton ");
+                postData.clear();
+                postData.put("entity", entity);
+                HttpPostAsyncTask task =
+                        new HttpPostAsyncTask(postData, RequestType.TRAKERPOS_PULL, callback);
+                task.execute(baseURL + pullPosString + "?entity=" + entity);
             }
         });
 
         listener = new LocationListener() {
             @Override
             public void onLocationChanged(Location location) {
-                t.setText("\n " + location.getLongitude() + " " + location.getLatitude());
+                t.setText(location.getLongitude() + " " + location.getLatitude());
                 posListener = location.getLatitude() + "," + location.getLongitude();
-                Log.d("LOG", " onLocationChanged - longitude: " + location.getLongitude() + ". latitude: " + location.getLatitude());
-                AsyncTask.execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        // final TextView restRestultText = (TextView) findViewById(R.id.restResultText);
-                        Log.d(TAG, "SendData");
-
-                        URL url = null;
-                        try {
-                            url = new URL(baseURL + publishPosString + "?pos=" + posListener + "&entity=" + entity);
-                        } catch (final MalformedURLException e) {
-                            Log.d(TAG, "eRRO");
-                            Log.d(TAG, e.getMessage());
-                            e.printStackTrace();
-                        }
-                        try {
-                            Log.d(TAG, url.toString());
-                            HttpsURLConnection myConnection =
-                                    (HttpsURLConnection) url.openConnection();
-                            myConnection.setRequestProperty("User-Agent", "my-rest-app-v0.1");
-                            myConnection.setRequestMethod("GET");
-                            Log.d(TAG, "\nSending request to URL : " + myConnection);
-                            if (myConnection.getResponseCode() == 200) {
-                                Log.d(TAG, "CODE 200");
-                                runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        pullPosButton.performClick();
-                                    }
-                                });
-                            } else {
-                                Log.d(TAG, "codigo diferente de 200: ");
-                            }
-                        } catch (final IOException e) {
-                            Log.d(TAG, e.getMessage());
-                            e.printStackTrace();
-                        }
-
-                    }
-                });
+                if (switchGps.isChecked()) {
+                    Log.d("LOG", " onLocationChanged - longitude: " + location.getLongitude() + ". latitude: " + location.getLatitude());
+                    postData.clear();
+                    postData.put("entity", entity);
+                    HttpPostAsyncTask task =
+                            new HttpPostAsyncTask(postData, RequestType.REFRESH_POS, callback);
+                    task.execute(baseURL + publishPosString + "?pos=" + posListener + "&entity=" + entity);
+                }
             }
 
             @Override
@@ -377,96 +315,57 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             @Override
             public void onClick(View view) {
                 Log.d(TAG, "onClick configure_button");
-                locationManager.requestLocationUpdates("gps", 1000, Integer.parseInt(dist.getText().toString()), listener);
+                if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                        && ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions(MainActivity.this,
+                            new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                            10);
+                    ActivityCompat.requestPermissions(MainActivity.this,
+                            new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
+                            10);
+                    return;
+                }
+                locationManager.requestLocationUpdates("gps", Integer.parseInt(gpsTime.getText().toString()), Integer.parseInt(dist.getText().toString()), listener);
+
             }
         });
     }
 
 
-
-    public TrackerPos readerTrackerPos(JsonReader reader) throws IOException {
-        String pos = null;
-        String time = null;
-        reader.beginObject();
-        while (reader.hasNext()) {
-            String name = reader.nextName();
-            if (name.equals("pos")) {
-                pos = reader.nextString();
-            } else if (name.equals("time")) {
-                time = reader.nextString();
-            } else {
-                reader.skipValue();
-            }
-        }
-        reader.endObject();
-        return new TrackerPos(pos, time);
-    }
-
     @Override
     public void onSensorChanged(final SensorEvent event) {
+       // if  (giroSwitsh.isChecked()) {
+        if  (1 == 2) {
+            final Float _x = event.values[0];
+            final Float _y = event.values[1];
+            final Float _z = event.values[2];
+            acelldisp.setText("X: " + _x + ", y: " + _y + ", z: " + _z);
 
-        final Float _x = event.values[0];
-        final Float _y = event.values[1];
-        final Float _z = event.values[2];
-        acelldisp.setText("X: " + _x + ", y: " + _y + ", z: " + _z);
-
-        if (x == 0.0f) {
-            x = _x;
-            y = _y;
-            z = _z;
-        } else {
-            if ((x - _x > 1.0f || y - _y > 1.0f || z - _z > 1.0f)) {
+            if (x == 0.0f) {
                 x = _x;
                 y = _y;
                 z = _z;
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        acell.setText("X: " + _x + ", y: " + _y + ", z: " + _z);
-                    }
-                });
-                AsyncTask.execute(new Runnable() {
-                    @Override
-                    public void run() {
-
-
-                        String pos = "-0.0,0.0";
-                        Log.d(TAG, "SendData - pos:" + posListener);
-                        URL url = null;
-                        try {
-                            if (posListener.isEmpty()) posListener = pos;
-                            url = new URL(baseURL + publishAlertString + "?pos=" + posListener + "&giro=true&entity=" + entityAlert);
-                            Log.d(TAG, "sendDataButton - URL: " + url);
-                        } catch (final MalformedURLException e) {
-                            Log.d(TAG, "eRRO");
-                            Log.d(TAG, e.getMessage());
-                            e.printStackTrace();
-                        }
-                        try {
-                            Log.d(TAG, url.toString());
-                            HttpsURLConnection myConnection =
-                                    (HttpsURLConnection) url.openConnection();
-                            myConnection.setRequestProperty("User-Agent", "my-rest-app-v0.1");
-                            myConnection.setRequestMethod("GET");
-                            Log.d(TAG, "\nSending request to URL : " + myConnection);
-                            /*
-                            if (myConnection.getResponseCode() == 200) {
-                                Log.d(TAG, "CODE 200");
-
-                            } else {
-                                Log.d(TAG, "codigo diferente de 200: ");
-                            }
-                            */
-                        } catch (final IOException e) {
-                            Log.d(TAG, e.getMessage());
-                            e.printStackTrace();
-                        }
-
-                    }
-                });
-
             } else {
-                // Log.d(TAG,"varia;áo menor que 1");
+                if ((x - _x > 1.0f || y - _y > 1.0f || z - _z > 1.0f)) {
+                    x = _x;
+                    y = _y;
+                    z = _z;
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            acell.setText("X: " + _x + ", y: " + _y + ", z: " + _z);
+                        }
+                    });
+                    sendDataButton.performClick();
+                    Log.e(TAG, "Send alerta giro" + posListener);
+                    postData.clear();
+                    postData.put("entity", entity);
+                    HttpPostAsyncTask task =
+                            new HttpPostAsyncTask(postData, RequestType.REFRESH_ALERT, callback);
+                    task.execute(baseURL + publishAlertString + "?pos=" + posListener + "&giro=true&entity=" + entityAlert);
+                } else {
+                    // Log.d(TAG,"varia;áo menor que 1");
+                }
             }
         }
 
@@ -477,6 +376,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     }
 
+    @Override
+    public void completionHandler(Boolean success, RequestType type, Object object) {
 
-
+    }
 }
+

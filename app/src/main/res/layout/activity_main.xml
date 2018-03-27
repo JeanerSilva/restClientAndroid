@@ -17,7 +17,7 @@
     <ListView
         android:id="@+id/lista"
         android:layout_width="match_parent"
-        android:layout_height="144dp"
+        android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         app:layout_constraintTop_toBottomOf="@+id/textView"
         tools:layout_editor_absoluteX="0dp">
@@ -56,50 +56,52 @@
         android:layout_height="wrap_content"
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true"
-        android:layout_marginTop="44dp"
+        android:layout_marginTop="8dp"
         android:gravity="center"
         android:text="Coordinates: "
         android:textAppearance="@style/TextAppearance.AppCompat"
-        app:layout_constraintTop_toBottomOf="@+id/acell"
+        app:layout_constraintTop_toBottomOf="@+id/switchGps"
         tools:layout_editor_absoluteX="8dp" />
 
     <TextView
         android:id="@+id/acell"
-        android:layout_width="368dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:text="acell: "
+        android:textAppearance="@style/TextAppearance.AppCompat"
+        app:layout_constraintStart_toEndOf="@+id/giroAlertSwitsh"
+        app:layout_constraintTop_toBottomOf="@+id/acelldisp" />
+
+    <TextView
+        android:id="@+id/acelldisp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true"
         android:layout_marginTop="12dp"
         android:gravity="center"
-        android:text="acell: "
-        android:textAppearance="@style/TextAppearance.AppCompat"
-        app:layout_constraintTop_toBottomOf="@+id/deleteButton"
-        tools:layout_editor_absoluteX="8dp" />
-
-    <TextView
-        android:id="@+id/acelldisp"
-        android:layout_width="368dp"
-        android:layout_height="wrap_content"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
-        android:layout_marginTop="44dp"
-        android:gravity="center"
         android:text="disp"
         android:textAlignment="textStart"
         android:textAppearance="@style/TextAppearance.AppCompat"
-        app:layout_constraintTop_toBottomOf="@+id/deleteButton"
-        tools:layout_editor_absoluteX="8dp" />
+        app:layout_constraintTop_toBottomOf="@+id/pullPosButton"
+        tools:layout_editor_absoluteX="16dp" />
 
     <EditText
         android:id="@+id/dist"
         android:layout_width="42dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
+        android:layout_marginStart="4dp"
+        android:layout_marginTop="8dp"
         android:ems="10"
         android:inputType="textPersonName"
         android:text="0"
-        app:layout_constraintStart_toEndOf="@+id/alertButton"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintStart_toEndOf="@+id/textView2"
+        app:layout_constraintTop_toBottomOf="@+id/giroAlertSwitsh" />
 
 
 
@@ -110,6 +112,53 @@
         android:text="Alert"
         app:layout_constraintStart_toEndOf="@+id/button"
         tools:layout_editor_absoluteY="0dp" />
+
+    <Switch
+        android:id="@+id/giroAlertSwitsh"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Alerta Giro"
+        app:layout_constraintTop_toBottomOf="@+id/acelldisp"
+        tools:layout_editor_absoluteX="0dp" />
+
+    <Switch
+        android:id="@+id/switchGps"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="GPS"
+        app:layout_constraintTop_toBottomOf="@+id/giroAlertSwitsh"
+        tools:layout_editor_absoluteX="0dp" />
+
+    <TextView
+        android:id="@+id/textView2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="Dist:"
+        app:layout_constraintStart_toEndOf="@+id/switchGps"
+        app:layout_constraintTop_toBottomOf="@+id/giroAlertSwitsh" />
+
+    <TextView
+        android:id="@+id/textView3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="Time:"
+        app:layout_constraintStart_toEndOf="@+id/dist"
+        app:layout_constraintTop_toBottomOf="@+id/giroAlertSwitsh" />
+
+    <EditText
+        android:id="@+id/gpsTimeTxt"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        android:text="1000"
+        app:layout_constraintStart_toEndOf="@+id/textView3"
+        app:layout_constraintTop_toBottomOf="@+id/giroAlertSwitsh" />
 
 
 </android.support.constraint.ConstraintLayout>

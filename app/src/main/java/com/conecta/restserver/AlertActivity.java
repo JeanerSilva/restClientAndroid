@@ -18,18 +18,49 @@ import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
 
-public class AlertActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener {
+public class AlertActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener, CustomCallback {
 
     String TAG = "RestAlerta";
     String baseURL = "";
     private String publishAlertString = "";
     private String pullAlertString = "";
     List<String> alertEntities = new ArrayList<>();
+    List<Alert> alertaList = new ArrayList<>();
+    AlertAdapter adapterAlert;
     Button pullAlertButton;
+
+    CustomCallback callback = new CustomCallback() {
+        @Override
+        public void completionHandler(Boolean success, RequestType type, final Object object) {
+            Log.d(TAG, "completionJhandler");
+            switch (type) {
+                case ALERT_PULL:
+                    runOnUiThread(new Runnable() {
+                        public void run() {
+                            alertaList.clear();
+                            alertaList.addAll((List<Alert>) object);
+                            adapterAlert.notifyDataSetChanged();
+                            Log.d(TAG, "alertaLIst" + alertaList.toString());
+                        }
+                    });
+                    break;
+                default:
+                    break;
+            }
+        }
+    };
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        pullAlertButton.performClick();
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,9 +88,9 @@ public class AlertActivity extends AppCompatActivity implements AdapterView.OnIt
         spinnerAlert.setAdapter(spinnerAlertAdapter);
         spinnerAlert.setOnItemSelectedListener(this);
         final ListView listaAlerta = findViewById(R.id.listaAlerta);
-        final List<Alert> alertaList = new ArrayList<>();
 
-        final AlertAdapter adapterAlert = new AlertAdapter(this,
+
+        adapterAlert = new AlertAdapter(this,
                 R.layout.activity_layout_list_alert, alertaList);
         listaAlerta.setAdapter(adapterAlert);
 
@@ -73,94 +104,16 @@ public class AlertActivity extends AppCompatActivity implements AdapterView.OnIt
 
         pullAlertButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                AsyncTask.execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        Log.d(TAG, "pullPosButton ");
-                        URL url = null;
-                        try {
-                            url = new URL(baseURL + pullAlertString + "?entity=" + spinnerAlert.getSelectedItem().toString() );
-                        } catch (final MalformedURLException e) {
-                            Log.d(TAG, "eRRO");
-                            Log.d(TAG, e.getMessage());
-                            e.printStackTrace();
-                        }
+                Map<String, String> postData = new HashMap<>();
+                postData.put("entity", "");
+                HttpPostAsyncTask task =
+                        new HttpPostAsyncTask(postData, RequestType.ALERT_PULL, callback);
+                task.execute(baseURL + pullAlertString + "?entity=" + spinnerAlert.getSelectedItem().toString());
 
-                        // Create connection
-                        try {
-                            Log.d(TAG, url.toString());
-                            HttpsURLConnection myConnection =
-                                    (HttpsURLConnection) url.openConnection();
-                            myConnection.setRequestProperty("User-Agent", "my-rest-app-v0.1");
-                            myConnection.setRequestMethod("GET");
-                            Log.d(TAG, "\nSending request to URL : " + myConnection);
-
-                            myConnection.addRequestProperty("entity", "moto");
-                            if (myConnection.getResponseCode() == 200) {
-                                Log.d(TAG, "CODE 200");
-                                String lista = "";
-                                alertaList.clear();
-                                InputStream responseBody = myConnection.getInputStream();
-                                InputStreamReader responseBodyReader =
-                                        new InputStreamReader(responseBody, "UTF-8");
-                                JsonReader jsonReader = new JsonReader(responseBodyReader);
-
-                                Alert alert = new Alert("Pos", "Mov", "Giro", "Time");
-                                alertaList.add(alert);
-                                jsonReader.beginArray();
-                                while (jsonReader.hasNext()) {
-                                    alert = readerAlert(jsonReader);
-                                    alertaList.add(alert);
-                                    //lista = lista + alert.toString();
-                                }
-                                //final String listacompleta = lista;
-                                jsonReader.endArray();
-                                jsonReader.close();
-                                myConnection.disconnect();
-
-                                runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        adapterAlert.notifyDataSetChanged();
-                                    }
-                                });
-                            } else {
-                                Log.d(TAG, "codigo diferente de 200: ");
-                            }
-
-                        } catch (final IOException e) {
-                            Log.d(TAG, e.getMessage());
-                            e.printStackTrace();
-                        }
-
-                    }
-                });
             }
         });
+        pullAlertButton.performClick();
 
-    }
-    public Alert readerAlert (JsonReader reader) throws IOException {
-        String pos = null;
-        String giro = null;
-        String mov = null;
-        String time = null;
-        reader.beginObject();
-        while (reader.hasNext()) {
-            String name = reader.nextName();
-            if (name.equals("pos")) {
-                pos = reader.nextString();
-            } else if (name.equals("giro")) {
-                giro = reader.nextString();
-            } else if (name.equals("mov")) {
-                mov = reader.nextString();
-            } else if (name.equals("time")) {
-                time = reader.nextString();
-            } else {
-                reader.skipValue();
-            }
-        }
-        reader.endObject();
-        return new Alert(pos, giro, mov, time);
     }
 
     @Override
@@ -170,6 +123,11 @@ public class AlertActivity extends AppCompatActivity implements AdapterView.OnIt
 
     @Override
     public void onNothingSelected(AdapterView<?> parent) {
+
+    }
+
+    @Override
+    public void completionHandler(Boolean success, RequestType type, Object object) {
 
     }
 }
