@@ -3,6 +3,7 @@ package com.conecta.restserver;
 import android.os.AsyncTask;
 import android.util.JsonReader;
 import android.util.Log;
+import android.widget.Toast;
 
 import org.json.JSONObject;
 
@@ -59,6 +60,8 @@ public class HttpPostAsyncTask extends AsyncTask<String, Void, Void> {
            int statusCode = urlConnection.getResponseCode();
           if (statusCode ==  200) {
               Log.d (TAG, "Statuscode 200" );
+
+
               InputStream responseBody = urlConnection.getInputStream();
               InputStreamReader responseBodyReader =
                       new InputStreamReader(responseBody, "UTF-8");
@@ -83,21 +86,6 @@ public class HttpPostAsyncTask extends AsyncTask<String, Void, Void> {
                       callback.completionHandler(true, type, trackerPosList);
                       Log.d (TAG, "trackerPosList: " + trackerPosList);
                       break;
-                 /*
-                      case ALERTS_PULL:
-                         Log.d (TAG, "TRACKERPOS" );
-                         List<Alert> alertList = new ArrayList<>();
-                        Alert alert;
-                         jsonReader.beginArray();
-                         while (jsonReader.hasNext()) {
-                             alert = readerAlert(jsonReader);
-                             alertList.add(alert);
-                         }
-                         jsonReader.endArray();
-                         callback.completionHandler(true, type, alertList);
-                         Log.d (TAG, "trackerPosList: " + alertList);
-                         break;
-                   */
                   case ALERT_PULL:
                       Log.d (TAG, "ALERT" );
                       final List<Alert> alertaList = new ArrayList<>();
@@ -110,7 +98,7 @@ public class HttpPostAsyncTask extends AsyncTask<String, Void, Void> {
                       }
                       jsonReader.endArray();
                       callback.completionHandler(true, type, alertaList);
-                      Log.d (TAG, "alertaList: " + alertaList);
+                      //Log.d (TAG, "alertaList: " + alertaList);
                       break;
                      case CONFIG_GIRO_PULL:
                          Log.d (TAG, "CONFIG_PULL" );

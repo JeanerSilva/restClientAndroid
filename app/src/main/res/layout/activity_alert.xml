@@ -33,5 +33,14 @@
         app:layout_constraintStart_toEndOf="@+id/atualizaAlerta"
         tools:layout_editor_absoluteY="16dp" />
 
+    <Button
+        android:id="@+id/deleteButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:text="Clear alerts"
+        app:layout_constraintStart_toEndOf="@+id/spinnerAlert"
+        tools:layout_editor_absoluteY="6dp" />
+
 
 </android.support.constraint.ConstraintLayout>

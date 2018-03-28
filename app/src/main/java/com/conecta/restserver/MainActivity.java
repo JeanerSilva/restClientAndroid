@@ -1,10 +1,20 @@
 package com.conecta.restserver;
 
 import android.Manifest;
+import android.app.ActivityManager;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.app.TaskStackBuilder;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.os.Build;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.app.NotificationCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -16,6 +26,8 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.Toast;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -24,7 +36,7 @@ import java.util.Map;
 public class MainActivity extends AppCompatActivity implements CustomCallback {
 
     String TAG = "RestMain";
-    private Button startService;
+
     private EditText gpsDist, gpsTime, timerInterval, giroSense;
     private final String baseURL = "https://coliconwg.appspot.com/";
 
@@ -39,13 +51,13 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
     private final String entityAlert = "motoalert";
     private final String publishAlertString = "alertpublish";
     private final String pullAlertString = "alertpull";
-    private final String alertDeleteString = "alertdelete";
+    private final String alertDeleteString = "alertsdelete";
 
     Map<String, String> postData = new HashMap<>();
     Button pullPosButton;
     Button callAlertActivity;
-    Button stopService;
-    Switch switchGiro, switchGps;
+    Button stopService, startService, checkService;
+    Switch switchGiro, switchGps, switchTransmit;
 
     List<TrackerPos> trackerPosList = new ArrayList<>();
     TrackerAdapter adapterTracker;
@@ -61,6 +73,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                             trackerPosList.clear();
                             trackerPosList.addAll((List<TrackerPos>) object);
                             adapterTracker.notifyDataSetChanged();
+                            Toast.makeText(MainActivity.this, "Obtida lista de posições", Toast.LENGTH_SHORT).show();
                         }
                     });
                     break;
@@ -97,10 +110,12 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                 case CONFIG_GIRO_PULL:
                     List<String> statusGiro = (List<String>) object;
                     switchGiro.setChecked(statusGiro.get(0).toString().equals("on") ? true : false);
+                    Toast.makeText(MainActivity.this, "Giro: " + statusGiro.get(0).toString(), Toast.LENGTH_SHORT).show();
                     break;
                 case CONFIG_GPS_PULL:
                     List<String> statusGps = (List<String>) object;
                     switchGps.setChecked(statusGps.get(0).toString().equals("on") ? true : false);
+                    Toast.makeText(MainActivity.this, "Giro: " + statusGps.get(0).toString(), Toast.LENGTH_SHORT).show();
                     break;
                 default:
                     break;
@@ -112,6 +127,38 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
     public void onResume() {
         super.onResume();
         pullPosButton.performClick();
+    }
+
+    private boolean isMyServiceRunning(Class<?> serviceClass) {
+        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
+            if (serviceClass.getName().equals(service.service.getClassName())) {
+                Toast.makeText(MainActivity.this, "O serviço está rodando", Toast.LENGTH_SHORT).show();
+                return true;
+            }
+        }
+        Toast.makeText(MainActivity.this, "O serviço parado", Toast.LENGTH_SHORT).show();
+        return false;
+    }
+
+    public void sendNotification(View view) {
+
+        //Get an instance of NotificationManager//
+
+        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(getApplicationContext(), "M_CH_ID");
+
+        notificationBuilder.setAutoCancel(true)
+                .setDefaults(Notification.DEFAULT_ALL)
+                .setWhen(System.currentTimeMillis())
+                //.setSmallIcon(R.drawable.ic_launcher)
+                .setTicker("Hearty365")
+                .setPriority(Notification.PRIORITY_MAX) // this is deprecated in API 26 but you can still use for below 26. check below update for 26 API
+                .setContentTitle("Default notification")
+                .setContentText("Lorem ipsum dolor sit amet, consectetur adipiscing elit.")
+                .setContentInfo("Info");
+
+        NotificationManager notificationManager = (NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
+        notificationManager.notify(1, notificationBuilder.build());
     }
 
     @Override
@@ -140,21 +187,14 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
         pullPosButton = findViewById(R.id.pullPosButton);
         stopService = findViewById(R.id.stopServiceButton);
         startService = findViewById(R.id.startServiceButton);
+        stopService = findViewById(R.id.stopServiceButton);
+        checkService = findViewById(R.id.checkService);
         Button deleteButton = findViewById(R.id.deleteButton);
 
         switchGiro = findViewById(R.id.giroAlertSwitsh);
         switchGps = findViewById(R.id.switchGps);
+        switchTransmit = findViewById(R.id.switchTransmitter);
         switchGiro.setChecked(true);
-
-        /*
-        Log.e(TAG, "Start Service");
-        Intent serviceIntent = new Intent(MainActivity.this, AlertIntentService.class);
-        serviceIntent.putExtra("timerStatus", "on");
-        serviceIntent.putExtra("timerInterval", timerInterval.toString());
-        serviceIntent.putExtra("gpsDist", gpsDist.toString());
-        serviceIntent.putExtra("gpsTime", gpsTime.toString());
-        startService(serviceIntent);
-        */
 
         switchGiro.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
@@ -220,27 +260,24 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
             }
         });
 
+
+
         stopService.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
              Log.e(TAG, "Stop Service");
-             stopService(new Intent(MainActivity.this, AlertIntentService.class));
-                Log.d(TAG, "Giro OFF ");
-                new HttpPostAsyncTask(postData, RequestType.CONFIG_PUBLISH, callback)
-                        .execute(baseURL + configString + "?entity=" + entityConfig + "giro" + "&action=publish&status=off");
-                Log.d(TAG, "GPS OFF ");
-                new HttpPostAsyncTask(postData, RequestType.CONFIG_PUBLISH, callback)
-                        .execute(baseURL + configString + "?entity=" + entityConfig + "gps" + "&action=publish&status=off");
-                Log.e(TAG, "Start Service");
-                Intent serviceIntent = new Intent(MainActivity.this, AlertIntentService.class);
-                serviceIntent.putExtra("timerStatus", "off");
-                serviceIntent.putExtra("timerInterval", timerInterval.getText().toString());
-                serviceIntent.putExtra("gpsDist", gpsDist.getText().toString());
-                serviceIntent.putExtra("gpsTime", gpsTime.getText().toString());
-                serviceIntent.putExtra("giroSense", giroSense.getText().toString());
-                startService(serviceIntent);
+
+                stopService(new Intent(MainActivity.this, AlertIntentService.class));
+                AlertIntentService.stopTimer();
             }
         });
 
+
+        checkService.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                Log.e(TAG, "Check Service");
+                isMyServiceRunning(AlertIntentService.class);
+            }
+        });
 
         startService.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
@@ -251,6 +288,8 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                 serviceIntent.putExtra("gpsDist", gpsDist.getText().toString());
                 serviceIntent.putExtra("gpsTime", gpsTime.getText().toString());
                 serviceIntent.putExtra("giroSense", giroSense.getText().toString());
+                String transmit = switchTransmit.isChecked() ? "transmitter" : "";
+                serviceIntent.putExtra("transmiter", transmit);
                 startService(serviceIntent);
             }
         });
@@ -266,6 +305,9 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                 b.putStringArrayList("alertEntities", alertEntities);
                 intent.putExtras(b);
                 startActivity(intent);
+
+
+
             }
         });
 
@@ -274,9 +316,8 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                 Log.d(TAG, "pullPosButton ");
                 postData.clear();
                 postData.put("entity", entity);
-                HttpPostAsyncTask task =
-                        new HttpPostAsyncTask(postData, RequestType.TRAKERPOS_PULL, callback);
-                task.execute(baseURL + pullPosString + "?entity=" + entity);
+                new HttpPostAsyncTask(postData, RequestType.TRAKERPOS_PULL, callback)
+                        .execute(baseURL + pullPosString + "?entity=" + entity);
             }
         });
 

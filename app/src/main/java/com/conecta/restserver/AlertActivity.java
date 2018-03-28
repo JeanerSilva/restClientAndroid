@@ -1,5 +1,6 @@
 package com.conecta.restserver;
 
+import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -9,6 +10,8 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.Spinner;
+import android.widget.Toast;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -25,7 +28,10 @@ public class AlertActivity extends AppCompatActivity implements AdapterView.OnIt
     List<String> alertEntities = new ArrayList<>();
     List<Alert> alertaList = new ArrayList<>();
     AlertAdapter adapterAlert;
-    Button pullAlertButton;
+    Button pullAlertButton, deleteButton;
+    Map<String, String> postData = new HashMap<>();
+    private final String alertDeleteString = "alertsdelete";
+    private final String entityAlert = "motoalert";
 
     CustomCallback callback = new CustomCallback() {
         @Override
@@ -39,8 +45,19 @@ public class AlertActivity extends AppCompatActivity implements AdapterView.OnIt
                             alertaList.addAll((List<Alert>) object);
                             adapterAlert.notifyDataSetChanged();
                             Log.d(TAG, "alertaLIst" + alertaList.toString());
+                            Toast.makeText(AlertActivity.this, "Obtida lista de alertas", Toast.LENGTH_SHORT).show();
                         }
                     });
+                    break;
+                case REFRESH_ALERT:
+
+                    runOnUiThread(new Runnable() {
+                        public void run() {
+                            pullAlertButton.performClick();
+                            Toast.makeText(AlertActivity.this, "Alertas deletados", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+
                     break;
                 default:
                     break;
@@ -71,7 +88,15 @@ public class AlertActivity extends AppCompatActivity implements AdapterView.OnIt
         }
 
         pullAlertButton = findViewById(R.id.atualizaAlerta);
+        deleteButton = findViewById(R.id.deleteButton);
 
+        deleteButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                Log.e(TAG, "Deleting alertas");
+                new HttpPostAsyncTask(postData, RequestType.REFRESH_ALERT, callback)
+                        .execute(baseURL + alertDeleteString + "?entity=" + entityAlert);
+            }
+        });
         final Spinner spinnerAlert = findViewById(R.id.spinnerAlert);
 
         ArrayAdapter<String> spinnerAlertAdapter =
@@ -91,6 +116,18 @@ public class AlertActivity extends AppCompatActivity implements AdapterView.OnIt
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 Log.d(TAG, "Pos i: " + id);
+                Alert selectedAlert = (Alert) listaAlerta.getAdapter().getItem(position);
+                String pos = selectedAlert.getPos();
+                Log.d(TAG, "pos: " + pos);
+                Intent intent = new Intent(AlertActivity.this, MapsActivity.class);
+                String positions[] = pos.split(",");
+                Bundle b = new Bundle();
+                b.putDouble("latitude", Double.parseDouble(positions[0]));
+                b.putDouble("longitude", Double.parseDouble(positions[1]));
+                intent.putExtras(b);
+                startActivity(intent);
+
+
             }
         });
 
