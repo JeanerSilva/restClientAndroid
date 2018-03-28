@@ -79,6 +79,7 @@ public class AlertIntentService extends IntentService implements SensorEventList
     NotificationCompat.Builder notificationBuilder;
     String NOTIFICATION_CHANNEL_ID = "my_channel_id_01";
     int f=0;
+    private boolean buscaalertaok, buscaposok, setgirook, setgpsok;
 
     CustomCallback callback = new CustomCallback() {
         @Override
@@ -91,6 +92,7 @@ public class AlertIntentService extends IntentService implements SensorEventList
                     Log.e(TAG, "statusGiroString: " + statusGiroString);
                     giroService = statusGiroString.equals("on") ? true : false;
                     Toast.makeText(AlertIntentService.this, "statusGiroString: " + statusGiroString, Toast.LENGTH_SHORT).show();
+                    setgirook = true;
                     break;
                 case CONFIG_GPS_PULL:
                     Log.d(TAG, "CONFIG_GPS_PULL" );
@@ -246,10 +248,14 @@ public class AlertIntentService extends IntentService implements SensorEventList
                 //stopSelf();
             }
         }
-
         return START_STICKY;
 
     };
+
+
+     /*
+
+        */
 
     @Override
     public void onDestroy() {
