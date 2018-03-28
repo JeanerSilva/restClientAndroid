@@ -3,16 +3,13 @@ package com.conecta.restserver;
 import android.Manifest;
 import android.app.ActivityManager;
 import android.app.Notification;
-import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.app.TaskStackBuilder;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
-import android.os.Build;
-import android.support.annotation.NonNull;
+import android.os.IBinder;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.NotificationCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -25,9 +22,7 @@ import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Switch;
-import android.widget.TextView;
 import android.widget.Toast;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -59,8 +54,12 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
     Button stopService, startService, checkService;
     Switch switchGiro, switchGps, switchTransmit;
 
+   AlertIntentService mService;
+    boolean mBound = false;
+
     List<TrackerPos> trackerPosList = new ArrayList<>();
     TrackerAdapter adapterTracker;
+    String transmit;
 
     String posListener = "0.0,0.0";
     CustomCallback callback = new CustomCallback() {
@@ -141,29 +140,47 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
         return false;
     }
 
-    public void sendNotification(View view) {
 
-        //Get an instance of NotificationManager//
-
-        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(getApplicationContext(), "M_CH_ID");
-
-        notificationBuilder.setAutoCancel(true)
-                .setDefaults(Notification.DEFAULT_ALL)
-                .setWhen(System.currentTimeMillis())
-                //.setSmallIcon(R.drawable.ic_launcher)
-                .setTicker("Hearty365")
-                .setPriority(Notification.PRIORITY_MAX) // this is deprecated in API 26 but you can still use for below 26. check below update for 26 API
-                .setContentTitle("Default notification")
-                .setContentText("Lorem ipsum dolor sit amet, consectetur adipiscing elit.")
-                .setContentInfo("Info");
-
-        NotificationManager notificationManager = (NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
-        notificationManager.notify(1, notificationBuilder.build());
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // Unbind from the service
+       // if (mBound) {
+       //     unbindService(mConnection);
+       //     mBound = false;
+       // }
     }
+
+    /** Defines callbacks for service binding, passed to bindService() */
+    private ServiceConnection mConnection = new ServiceConnection() {
+
+        @Override
+        public void onServiceConnected(ComponentName className,
+                                       IBinder service) {
+            // We've bound to LocalService, cast the IBinder and get LocalService instance
+            Toast.makeText(MainActivity.this, "Service connected.", Toast.LENGTH_SHORT).show();
+            AlertIntentService.LocalBinder binder = (AlertIntentService.LocalBinder) service;
+            mService = binder.getService();
+            mBound = true;
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+            Toast.makeText(MainActivity.this, "Service canceled.", Toast.LENGTH_SHORT).show();
+            mBound = false;
+        }
+    };
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        Intent intent = new Intent(this, AlertIntentService.class);
+        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+
+
         setContentView(R.layout.activity_main);
         Log.d(TAG, "onCreate ");
 
@@ -195,6 +212,29 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
         switchGps = findViewById(R.id.switchGps);
         switchTransmit = findViewById(R.id.switchTransmitter);
         switchGiro.setChecked(true);
+
+        switchTransmit.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+
+                if (mService.stopTimer() == null) Log.e(TAG, "Timer null.");
+                transmit = switchTransmit.isChecked() ? "transmiter" : "receptor";
+                    if (mBound) {
+                        Toast.makeText(MainActivity.this,
+                                mService.startTimer(Long.parseLong(timerInterval.getText().toString()), transmit,
+                                        gpsDist.getText().toString(),
+                                        gpsTime.getText().toString(),
+                                        giroSense.getText().toString()),
+                                Toast.LENGTH_SHORT).show();
+                    } else {
+                        String message = "Não foi possível iniciar o serviço.";
+                        Toast.makeText(MainActivity.this,
+                                message,Toast.LENGTH_SHORT).show();
+                        Log.e(TAG, message);
+                    }
+
+
+            }
+        });
 
         switchGiro.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
@@ -262,14 +302,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
 
 
 
-        stopService.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-             Log.e(TAG, "Stop Service");
 
-                stopService(new Intent(MainActivity.this, AlertIntentService.class));
-                AlertIntentService.stopTimer();
-            }
-        });
 
 
         checkService.setOnClickListener(new View.OnClickListener() {
@@ -279,18 +312,41 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
             }
         });
 
+
+        stopService.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                Log.e(TAG, "Stop Service");
+                mService.stopTimer();
+               // stopService(new Intent(MainActivity.this, AlertIntentService.class));
+
+            }
+        });
+
         startService.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 Log.e(TAG, "Start Service");
+
+                if (mBound) {
+                   transmit = switchTransmit.isChecked() ? "transmiter" : "";
+                   Toast.makeText(MainActivity.this,
+                           mService.startTimer(Long.parseLong(timerInterval.getText().toString()), transmit,
+                           gpsDist.getText().toString(),
+                           gpsTime.getText().toString(),
+                           giroSense.getText().toString()),
+                           Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(MainActivity.this,
+                            "Não foi possível iniciar o serviço.",Toast.LENGTH_SHORT).show();
+                }
+                /*
                 Intent serviceIntent = new Intent(MainActivity.this, AlertIntentService.class);
-                serviceIntent.putExtra("timerStatus", "on");
-                serviceIntent.putExtra("timerInterval", timerInterval.getText().toString());
                 serviceIntent.putExtra("gpsDist", gpsDist.getText().toString());
                 serviceIntent.putExtra("gpsTime", gpsTime.getText().toString());
                 serviceIntent.putExtra("giroSense", giroSense.getText().toString());
-                String transmit = switchTransmit.isChecked() ? "transmitter" : "";
-                serviceIntent.putExtra("transmiter", transmit);
+
+                //serviceIntent.putExtra("transmiter", transmit);
                 startService(serviceIntent);
+                */
             }
         });
 
@@ -305,9 +361,6 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                 b.putStringArrayList("alertEntities", alertEntities);
                 intent.putExtras(b);
                 startActivity(intent);
-
-
-
             }
         });
 

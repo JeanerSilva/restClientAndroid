@@ -69,8 +69,6 @@ public class AlertIntentService extends IntentService implements SensorEventList
     public Criteria criteria;
     public String bestProvider;
     Timer timer;
-    String timerStatus;
-    String timerInterval;
     String gpsDist;
     String gpsTime;
     String giroSense;
@@ -79,7 +77,6 @@ public class AlertIntentService extends IntentService implements SensorEventList
     NotificationCompat.Builder notificationBuilder;
     String NOTIFICATION_CHANNEL_ID = "my_channel_id_01";
     int f=0;
-    private boolean buscaalertaok, buscaposok, setgirook, setgpsok;
 
     CustomCallback callback = new CustomCallback() {
         @Override
@@ -92,7 +89,6 @@ public class AlertIntentService extends IntentService implements SensorEventList
                     Log.e(TAG, "statusGiroString: " + statusGiroString);
                     giroService = statusGiroString.equals("on") ? true : false;
                     Toast.makeText(AlertIntentService.this, "statusGiroString: " + statusGiroString, Toast.LENGTH_SHORT).show();
-                    setgirook = true;
                     break;
                 case CONFIG_GPS_PULL:
                     Log.d(TAG, "CONFIG_GPS_PULL" );
@@ -174,13 +170,13 @@ public class AlertIntentService extends IntentService implements SensorEventList
             }
 
     private void buscaAlertas (){
-        Log.d(TAG, "Busca Alertas ");
+        Log.d(TAG, "Search alerts: " + entityAlert);
         new HttpPostAsyncTask(postData, RequestType.ALERT_PULL, callback)
                 .execute(baseURL + pullAlertString + "?entity=" + entityAlert);
     }
 
     private void buscaPos (){
-        Log.d(TAG, "Busca Alertas ");
+        Log.d(TAG, "Search positions: " + entity);
         new HttpPostAsyncTask(postData, RequestType.TRAKERPOS_PULL, callback)
                 .execute(baseURL + pullPosString + "?entity=" + entity);
     }
@@ -189,17 +185,56 @@ public class AlertIntentService extends IntentService implements SensorEventList
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStart(intent, startId);
-
         Bundle extras = intent.getExtras();
-        timerStatus = extras.get("timerStatus").toString();
-        timerInterval = extras.get("timerInterval").toString();
-        gpsDist = extras.get("gpsDist").toString();
-        gpsTime = extras.get("gpsTime").toString();
-        giroSense = extras.get("giroSense").toString();
-        transmit = extras.get("transmiter").toString();
+
+        return START_STICKY;
+    };
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        Log.e(TAG, "destoy");
+        Toast.makeText(AlertIntentService.this, "Service destroyed.", Toast.LENGTH_SHORT).show();
+    }
+
+    IBinder mBinder = new LocalBinder();
+
+    public class LocalBinder extends Binder {
+        AlertIntentService getService() {
+            // Return this instance of LocalService so clients can call public methods
+            return AlertIntentService.this;
+        }
+    }
+
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return mBinder;
+    }
+
+    public String stopTimer(){
+        Log.e(TAG, "Timer Stopped.");
+        try {
+            timer.cancel();
+        } catch (Exception e) {
+            return null;
+        }
+
+        return "Timer Stopped";
+    }
+
+    public String startTimer (long TIME, final String _transmit, String _gpsDist, String _gpsTime, String _giroSense){
+        transmit = _transmit;
+        String message = "Timer iniciado - timerInterval: " + TIME + ". Modo de operação: " + transmit;
+        Log.e(TAG, message);
+      gpsDist = _gpsDist;
+        gpsTime = _gpsTime;
+        giroSense = _giroSense;
+        if (timer == null) timer = new Timer();
+
         notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             @SuppressLint("WrongConstant") NotificationChannel notificationChannel
                     = new NotificationChannel(NOTIFICATION_CHANNEL_ID, "My Notifications", NotificationManager.IMPORTANCE_MAX);
             notificationChannel.setDescription("Channel description");
@@ -210,76 +245,34 @@ public class AlertIntentService extends IntentService implements SensorEventList
             notificationManager.createNotificationChannel(notificationChannel);
         }
 
-        Log.d(TAG, "Serviço iniciado. onStartCommand() - timerInterval: " + timerInterval.toString() + ". timerStatus: " + timerStatus.toString());
-        long TIME = (Integer.valueOf(timerInterval.toString()));
         getLocation();
-        if (timer == null) {
-            timer = new Timer();
-            if (timerStatus.toString().equals("on")) {
-                TimerTask verificaGiroConfig = new TimerTask() {
+        timer = new Timer();
+        timer.scheduleAtFixedRate(
+               new TimerTask() {
                     @Override
                     public void run() {
-                        Log.d(TAG, "run Timer");
+                        Log.e(TAG, "Timer running - modo: " + transmit);
                         buscaAlertas();
                         buscaPos();
-                        Log.d(TAG, "transmit: " + transmit);
-                        if (!transmit.isEmpty()) {
-                            Log.d(TAG, "transmit not empty");
+                        if (!_transmit.isEmpty()) {
                             setaGiroService();
                             setaGpsService();
                             if (giroService) {
-                                Log.e(TAG, " Giro start");
+                                Log.e(TAG, " Giro running.");
                                 SM = (SensorManager) getSystemService(SENSOR_SERVICE);
                                 acellSensor = SM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
                                 SM.registerListener(AlertIntentService.this, acellSensor, SensorManager.SENSOR_DELAY_NORMAL);
                             } else {
-                                Log.e(TAG, " Giro stop");
+                                Log.e(TAG, " Giro stopped");
                                 if (SM != null) SM.unregisterListener(AlertIntentService.this);
                             }
-
-
                         }
                     }
-                };
-                timer.scheduleAtFixedRate(verificaGiroConfig, TIME, TIME);
-            } else {
-                Log.d(TAG, "Encerrando o serviço");
-                timer.cancel();
-                //stopSelf();
-            }
-        }
-        return START_STICKY;
-
-    };
+                },
+        TIME, TIME);
 
 
-     /*
-
-        */
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        Log.e(TAG, "destoy");
-
-    }
-
-    IBinder mBinder = new LocalBinder();
-
-    @Override
-    public IBinder onBind(Intent intent) {
-        return mBinder;
-    }
-
-    public class LocalBinder extends Binder {
-        public AlertIntentService getServerInstance() {
-            return AlertIntentService.this;
-        }
-    }
-
-    public static String stopTimer(){
-//        timer.cancel();
-        return "Timer Stopped";
+        return message;
     }
 
     @Override
