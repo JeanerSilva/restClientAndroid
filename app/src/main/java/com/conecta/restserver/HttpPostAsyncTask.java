@@ -100,27 +100,33 @@ public class HttpPostAsyncTask extends AsyncTask<String, Void, Void> {
                       callback.completionHandler(true, type, alertaList);
                       //Log.d (TAG, "alertaList: " + alertaList);
                       break;
-                     case CONFIG_GIRO_PULL:
+                     case CONFIG_PULL:
                          Log.d (TAG, "CONFIG_PULL" );
-                         final List<String> configGiroList = new ArrayList<>();
-                         jsonReader.beginArray();
+                         final Config config = new Config();
+
+                         jsonReader.beginObject();
                          while (jsonReader.hasNext()) {
-                             configGiroList.add(jsonReader.nextString());
+                             String name = jsonReader.nextName();
+                             if (name.equals("gpsStatus")) {
+                                 config.setGpsStatus(jsonReader.nextString());
+                             } else if (name.equals("giroStatus")) {
+                                 config.setGiroStatus(jsonReader.nextString());
+                             } else if (name.equals("time")) {
+                                 config.setTime(jsonReader.nextString());
+                             } else if (name.equals("gpsTime")) {
+                                 config.setGpsTime(jsonReader.nextString());
+                             } else if (name.equals("gpsDist")) {
+                                 config.setGpsDist(jsonReader.nextString());
+                             } else if (name.equals("giroSense")) {
+                                 config.setGiroSense(jsonReader.nextString());
+                             } else {
+                                 jsonReader.skipValue();
+                             }
                          }
-                         jsonReader.endArray();
-                         callback.completionHandler(true, type, configGiroList);
-                         Log.d (TAG, "configGiroList: " + configGiroList);
-                         break;
-                     case CONFIG_GPS_PULL:
-                         Log.d (TAG, "CONFIG_GPS_PULL" );
-                         final List<String> configGpsList = new ArrayList<>();
-                         jsonReader.beginArray();
-                         while (jsonReader.hasNext()) {
-                             configGpsList.add(jsonReader.nextString());
-                         }
-                         jsonReader.endArray();
-                         callback.completionHandler(true, type, configGpsList);
-                         Log.d (TAG, "configGpsList: " + configGpsList);
+                         jsonReader.endObject();
+
+                         Log.d(TAG, "Config: "+ config);
+                         callback.completionHandler(true, type, config);
                          break;
 
                   default:
