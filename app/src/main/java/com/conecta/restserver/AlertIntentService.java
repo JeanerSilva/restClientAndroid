@@ -234,11 +234,7 @@ public class AlertIntentService extends IntentService implements SensorEventList
                                 Log.e(TAG, " Giro stop");
                                 if (SM != null) SM.unregisterListener(AlertIntentService.this);
                             }
-                            if (gpsService) {
-                                posListener = String.valueOf(latitude + "," + longitude);
-                                new HttpPostAsyncTask(postData, RequestType.REFRESH_POS, callback)
-                                        .execute(baseURL + publishPosString + "?pos=" + posListener + "&entity=" + entity);
-                            }
+
 
                         }
                     }
@@ -309,6 +305,12 @@ public class AlertIntentService extends IntentService implements SensorEventList
         latitude = location.getLatitude();
         longitude = location.getLongitude();
         Toast.makeText(AlertIntentService.this, "latitude:" + latitude + " longitude:" + longitude, Toast.LENGTH_SHORT).show();
+
+        if (gpsService) {
+            posListener = String.valueOf(latitude + "," + longitude);
+            new HttpPostAsyncTask(postData, RequestType.REFRESH_POS, callback)
+                    .execute(baseURL + publishPosString + "?pos=" + posListener + "&entity=" + entity);
+        }
     }
 
     @Override
