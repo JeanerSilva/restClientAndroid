@@ -27,26 +27,11 @@ import java.util.Map;
 import java.util.Timer;
 
 public class MainActivity extends AppCompatActivity implements CustomCallback {
-
     String TAG = "RestMain";
 
     private EditText gpsDist, gpsTime, timerInterval, giroSense;
-    private final String baseURL = "https://coliconwg.appspot.com/";
-
-    private final String entity = "moto";
-    private final String deletePosString = "posdelete";
-    private final String publishPosString = "pospublish";
-    private final String pullPosString = "pospull";
-    private final String configString = "config";
-    private final String entityConfig = "motoconfig";
-
-    ArrayList<String> alertEntities = new ArrayList<>();
-    private final String entityAlert = "motoalert";
-    private final String publishAlertString = "alertpublish";
-    private final String pullAlertString = "alertpull";
-    private final String alertDeleteString = "alertsdelete";
     TextView timerStatus;
-
+    ArrayList<String> alertEntities = new ArrayList<>();
     Map<String, String> postData = new HashMap<>();
     Button pullPosButton;
     Button callAlertActivity;
@@ -54,9 +39,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
     Button saveConfig;
     Switch switchGiro, switchGps, switchTransmit, switchWhatsApp;
 
-    Timer timer = new Timer();
-
-   AlertIntentService mService;
+    AlertIntentService mService;
     boolean mBound = false;
 
     List<TrackerPos> trackerPosList = new ArrayList<>();
@@ -121,9 +104,9 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                                 Toast.makeText(MainActivity.this, object.toString(), Toast.LENGTH_SHORT).show();
                             } else {
                                 Config config = (Config) object;
-                                switchGiro.setChecked(config.getGiroStatus().toString().equals("on") ? true : false);
-                                switchGps.setChecked(config.getGpsStatus().toString().equals("on") ? true : false);
-                                switchWhatsApp.setChecked(config.getWhatsApp().toString().equals("whatsapp") ? true : false);
+                                switchGiro.setChecked(config.getGiroStatus().equals("on"));
+                                switchGps.setChecked(config.getGpsStatus().equals("on"));
+                                switchWhatsApp.setChecked(config.getWhatsApp().equals("whatsapp"));
                                 gpsTime.setText(config.getGpsTime());
                                 gpsDist.setText(config.getGpsDist());
                                 giroSense.setText(config.getGiroSense());
@@ -149,16 +132,15 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
         pullPosButton.performClick();
     }
 
-    private boolean isMyServiceRunning(Class<?> serviceClass) {
+    private void isMyServiceRunning(Class<?> serviceClass) {
         ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        assert manager != null;
         for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
             if (serviceClass.getName().equals(service.service.getClassName())) {
                 Toast.makeText(MainActivity.this, "O serviço está rodando", Toast.LENGTH_SHORT).show();
-                return true;
             }
         }
         Toast.makeText(MainActivity.this, "O serviço parado", Toast.LENGTH_SHORT).show();
-        return false;
     }
 
 
@@ -243,10 +225,13 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                 String gpsStatus = switchGps.isChecked() ? "on" : "off";
                 String giroStatus = switchGiro.isChecked() ? "on" : "off";
                 String whatsApp = switchWhatsApp.isChecked() ? "whatsapp" : "";
-                String url = baseURL + configString + "?entity=" + entityConfig
-                        + "&action=publish&girostatus="+ giroStatus.toString() +"&gpsstatus=" + gpsStatus.toString()
-                        + "&gpstime=" + gpsTime.getText().toString() + "&gpsdist=" + gpsDist.getText().toString()
-                        + "&girosense="+ giroSense.getText().toString()
+                String url = AppConfig.baseURL + AppConfig.configString + "?entity=" + AppConfig.entityConfig
+                        + "&action=publish"
+                        + "&girostatus="    + giroStatus
+                        + "&gpsstatus="     + gpsStatus
+                        + "&gpstime="       + gpsTime.getText().toString()
+                        + "&gpsdist="       + gpsDist.getText().toString()
+                        + "&girosense="     + giroSense.getText().toString()
                         + "&timertransmit=" + timerInterval.getText().toString()
                         + "&whatsapp=" + whatsApp;
                 Log.d(TAG, "Save config:" + url);
@@ -280,7 +265,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
             public void onClick(View v) {
                 Log.d(TAG, "Deletando posições");
             new HttpPostAsyncTask(postData, RequestType.REFRESH_POS, callback)
-                       .execute(baseURL + deletePosString + "?entity=" + entity);
+                       .execute(AppConfig.baseURL + AppConfig.deletePosString + "?entity=" + AppConfig.entity);
             }
         });
 
@@ -290,7 +275,9 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                 Log.d(TAG, "Check Service");
                 isMyServiceRunning(AlertIntentService.class);
                 new HttpPostAsyncTask(postData, RequestType.CONFIG_PULL, callback)
-                        .execute(baseURL + configString + "?entity=" + entityConfig + "&action=pull");
+                        .execute(AppConfig.baseURL + AppConfig.configString
+                                + "?entity=" + AppConfig.entityConfig
+                                + "&action=pull");
             }
         });
 
@@ -324,13 +311,15 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
         callAlertActivity.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 Intent intent = new Intent(MainActivity.this, AlertActivity.class);
+                /*
                 Bundle b = new Bundle();
-                b.putString("baseURL", baseURL);
-                b.putString("publishAlertString", publishAlertString);
-                b.putString("pullAlertString", pullAlertString);
-                b.putString("pullAlertString", pullAlertString);
+                b.putString("baseURL", AppConfig.baseURL);
+                b.putString("publishAlertString", AppConfig.publishAlertString);
+                b.putString("pullAlertString", AppConfig.pullAlertString);
+                b.putString("pullAlertString", AppConfig.pullAlertString);
                 b.putStringArrayList("alertEntities", alertEntities);
                 intent.putExtras(b);
+                */
                 startActivity(intent);
             }
         });
@@ -339,9 +328,9 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
             public void onClick(View v) {
                 Log.d(TAG, "pullPosButton ");
                 postData.clear();
-                postData.put("entity", entity);
+                postData.put("entity", AppConfig.entity);
                 new HttpPostAsyncTask(postData, RequestType.TRAKERPOS_PULL, callback)
-                        .execute(baseURL + pullPosString + "?entity=" + entity);
+                        .execute(AppConfig.baseURL + AppConfig.pullPosString + "?entity=" + AppConfig.entity);
             }
         });
 

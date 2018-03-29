@@ -82,9 +82,4 @@ public class Config {
                 + gpsTime + ", gpsDist=" + gpsDist + ", giroSense=" + giroSense + ", timerTransmit=" + timerTransmit
                 + ", whatsApp=" + whatsApp + "]";
     }
-
-
-
-
-
 }

@@ -20,18 +20,12 @@ import java.util.Map;
 import javax.net.ssl.HttpsURLConnection;
 
 public class AlertActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener, CustomCallback {
-
     String TAG = "RestAlerta";
-    String baseURL = "";
-    private String publishAlertString = "";
-    private String pullAlertString = "";
     List<String> alertEntities = new ArrayList<>();
     List<Alert> alertaList = new ArrayList<>();
     AlertAdapter adapterAlert;
-    Button pullAlertButton, deleteButton;
+    Button pullAlertButton;
     Map<String, String> postData = new HashMap<>();
-    private final String alertDeleteString = "alertsdelete";
-    private final String entityAlert = "motoalert";
 
     CustomCallback callback = new CustomCallback() {
         @Override
@@ -79,18 +73,7 @@ public class AlertActivity extends AppCompatActivity implements AdapterView.OnIt
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_alert);
-
-        Bundle b = getIntent().getExtras();
-        if (b != null) {
-            baseURL = b.getString("baseURL");
-            publishAlertString = b.getString("publishAlertString");
-            pullAlertString = b.getString("pullAlertString");
-            alertEntities = b.getStringArrayList("alertEntities");
-
-        } else {
-            Log.d(TAG, "Não foi possível obter os dados do intent");
-        }
-
+        Button deleteButton;
         pullAlertButton = findViewById(R.id.atualizaAlerta);
         deleteButton = findViewById(R.id.deleteButton);
 
@@ -98,7 +81,7 @@ public class AlertActivity extends AppCompatActivity implements AdapterView.OnIt
             public void onClick(View v) {
                 Log.e(TAG, "Deleting alertas");
                 new HttpPostAsyncTask(postData, RequestType.REFRESH_ALERT, callback)
-                        .execute(baseURL + alertDeleteString + "?entity=" + entityAlert);
+                        .execute(AppConfig.baseURL + AppConfig.alertDeleteString + "?entity=" + AppConfig.entityAlert);
             }
         });
         final Spinner spinnerAlert = findViewById(R.id.spinnerAlert);
@@ -110,11 +93,9 @@ public class AlertActivity extends AppCompatActivity implements AdapterView.OnIt
         spinnerAlert.setOnItemSelectedListener(this);
         final ListView listaAlerta = findViewById(R.id.listaAlerta);
 
-
         adapterAlert = new AlertAdapter(this,
                 R.layout.activity_layout_list_alert, alertaList);
         listaAlerta.setAdapter(adapterAlert);
-
 
         listaAlerta.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
@@ -126,8 +107,8 @@ public class AlertActivity extends AppCompatActivity implements AdapterView.OnIt
                 Intent intent = new Intent(AlertActivity.this, MapsActivity.class);
                 String positions[] = pos.split(",");
                 Bundle b = new Bundle();
-                b.putDouble("latitude", Double.parseDouble(positions[0]));
-                b.putDouble("longitude", Double.parseDouble(positions[1]));
+                    b.putDouble("latitude", Double.parseDouble(positions[0]));
+                    b.putDouble("longitude", Double.parseDouble(positions[1]));
                 intent.putExtras(b);
                 startActivity(intent);
 
@@ -140,7 +121,9 @@ public class AlertActivity extends AppCompatActivity implements AdapterView.OnIt
                 Map<String, String> postData = new HashMap<>();
                 postData.put("entity", "");
                 new HttpPostAsyncTask(postData, RequestType.ALERT_PULL, callback)
-                        .execute(baseURL + pullAlertString + "?entity=" + spinnerAlert.getSelectedItem().toString());
+                        .execute(AppConfig.baseURL
+                                + AppConfig.pullAlertString
+                                + "?entity=" + spinnerAlert.getSelectedItem().toString());
 
             }
         });
@@ -149,17 +132,11 @@ public class AlertActivity extends AppCompatActivity implements AdapterView.OnIt
     }
 
     @Override
-    public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-        pullAlertButton.performClick();
-    }
+    public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {pullAlertButton.performClick();}
 
     @Override
-    public void onNothingSelected(AdapterView<?> parent) {
-
-    }
+    public void onNothingSelected(AdapterView<?> parent) {}
 
     @Override
-    public void completionHandler(Boolean success, RequestType type, Object object) {
-
-    }
+    public void completionHandler(Boolean success, RequestType type, Object object) {}
 }

@@ -33,6 +33,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class AlertIntentService extends IntentService implements SensorEventListener, CustomCallback, LocationListener {
+    /*
     private final String entity = "moto";
     private final String publishPosString = "pospublish";
     private final String entityAlert = "motoalert";
@@ -42,11 +43,10 @@ public class AlertIntentService extends IntentService implements SensorEventList
     private final String configString = "config";
     private final String entityConfig = "motoconfig";
     private final String pullPosString = "pospull";
+    */
 
     private List<Alert> alertList = new ArrayList<>();
     List<TrackerPos> trackerPosList = new ArrayList<>();
-    private int totalAlerts = 0;
-    private int totalPos = 0;
     private Sensor acellSensor;
     private SensorManager SM;
     Float x = 0.0f;Float y = 0.0f;Float z = 0.0f;
@@ -69,9 +69,6 @@ public class AlertIntentService extends IntentService implements SensorEventList
     NotificationManager notificationManager;
     NotificationCompat.Builder notificationBuilder;
     String NOTIFICATION_CHANNEL_ID = "my_channel_id_01";
-    int f=0;
-    boolean configReady;
-    boolean timerRunning;
     String timerInterval;
 
     CustomCallback callback = new CustomCallback() {
@@ -90,7 +87,6 @@ public class AlertIntentService extends IntentService implements SensorEventList
                     gpsDist = config.getGpsDist();
                     giroSense = config.getGiroSense();
                     whatsApp = config.getWhatsApp();
-                    configReady = true;
                     getLocation();
                     Log.d(TAG, "statusGiroString: " + config);
                     //if (timerInterval.equals(config.getTimerTransmit())) {
@@ -109,7 +105,7 @@ public class AlertIntentService extends IntentService implements SensorEventList
                         Log.d(TAG, object.toString());
                     } else {
                         Log.d(TAG, "ALERT_PULL");
-                        totalAlerts = alertList.size();
+                        int totalAlerts = alertList.size();
                         alertList.clear();
                         alertList.addAll((List<Alert>) object);
                         int newTotal = alertList.size();
@@ -140,7 +136,7 @@ public class AlertIntentService extends IntentService implements SensorEventList
                         Log.d(TAG, object.toString());
                     } else {
                         Log.d(TAG, "TRAKERPOS_PULL");
-                        totalPos = trackerPosList.size();
+                        int totalPos = trackerPosList.size();
                         trackerPosList.clear();
                         trackerPosList.addAll((List<TrackerPos>) object);
                         int newTotalPos = trackerPosList.size();
@@ -172,30 +168,29 @@ public class AlertIntentService extends IntentService implements SensorEventList
         }
     };
 
-    public void buscaConfig (){
+    private void buscaConfig(){
         Log.d(TAG, "Busca Giro Status ");
         new HttpPostAsyncTask(postData, RequestType.CONFIG_PULL, callback)
-                .execute(baseURL + configString + "?entity=" + entityConfig  + "&action=pull");
+                .execute(AppConfig.baseURL + AppConfig.configString + "?entity=" + AppConfig.entityConfig  + "&action=pull");
     }
 
     private void buscaAlertas (){
-        Log.d(TAG, "Search alerts: " + entityAlert);
+        Log.d(TAG, "Search alerts: " + AppConfig.entityAlert);
         new HttpPostAsyncTask(postData, RequestType.ALERT_PULL, callback)
-                .execute(baseURL + pullAlertString + "?entity=" + entityAlert);
+                .execute(AppConfig.baseURL + AppConfig.pullAlertString + "?entity=" + AppConfig.entityAlert);
     }
 
     private void buscaPos (){
-        Log.d(TAG, "Search positions: " + entity);
+        Log.d(TAG, "Search positions: " + AppConfig.entity);
         new HttpPostAsyncTask(postData, RequestType.TRAKERPOS_PULL, callback)
-                .execute(baseURL + pullPosString + "?entity=" + entity);
+                .execute(AppConfig.baseURL + AppConfig.pullPosString + "?entity=" + AppConfig.entity);
     }
 
-    @SuppressLint("MissingPermission")
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStart(intent, startId);
         Bundle extras = intent.getExtras();
-
         return START_STICKY;
     }
 
@@ -229,7 +224,6 @@ public class AlertIntentService extends IntentService implements SensorEventList
     public String stopTimer(){
         Log.d(TAG, "Timer Stopped.");
         try {
-            timerRunning = true;
             timer.cancel();
 
         } catch (Exception e) {
@@ -244,8 +238,6 @@ public class AlertIntentService extends IntentService implements SensorEventList
         SM = (SensorManager) getSystemService(SENSOR_SERVICE);
         acellSensor = SM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         SM.registerListener(AlertIntentService.this, acellSensor, SensorManager.SENSOR_DELAY_NORMAL);
-
-        timerRunning = true;
         timerInterval = String.valueOf(TIME);
         this.gpsDist = gpsDist;
         this.gpsTime = gpsTime;
@@ -283,21 +275,22 @@ public class AlertIntentService extends IntentService implements SensorEventList
                         if (operationMode.equals(OperationMode.TRANSMITER)) {
                                 buscaConfig();
                                 if (whatsApp != null && whatsApp.equals("whatsapp")) {
-                                    String url = baseURL + publishPosString + "?pos=" + posListener + "&entity=" + entity;
+                                    String url = AppConfig.baseURL + AppConfig.publishPosString + "?pos=" + posListener + "&entity=" + AppConfig.entity;
                                     new HttpPostAsyncTask(postData, RequestType.REFRESH_POS, callback)
                                             .execute(url);
                                     Log.e(TAG,"PUBLISH POS = " + url);
                                 }
                                 if (giroService) {
                                     Log.d(TAG, " Giro running.");
-                                    if (SM == null) {
+                                    if (null == SM) {
                                         SM = (SensorManager) getSystemService(SENSOR_SERVICE);
+                                        assert SM != null;
                                         acellSensor = SM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
                                         SM.registerListener(AlertIntentService.this, acellSensor, SensorManager.SENSOR_DELAY_NORMAL);
                                     }
                                 } else {
                                     Log.d(TAG, " Giro stopped");
-                                    if (SM != null) {
+                                    if (null != SM) {
                                         SM.unregisterListener(AlertIntentService.this);
                                         //SM = null;
                                     }
@@ -320,12 +313,12 @@ public class AlertIntentService extends IntentService implements SensorEventList
             x = _x;y = _y;z = _z;
         } else {
             if (giroSense != null) {
-                Float sense = Float.parseFloat(giroSense.toString());
+                Float sense = Float.parseFloat(giroSense);
                 if ((x - _x > sense || y - _y > sense || z - _z > sense)) {
                     x = _x;y = _y;z = _z;
                     posListener = String.valueOf(latitude + "," + longitude);
                     Log.d(TAG, "Send alerta giro" + posListener);
-                    String url = baseURL + publishAlertString + "?pos=" + posListener + "&font=giro&entity=" + entityAlert;
+                    String url = AppConfig.baseURL + AppConfig.publishAlertString + "?pos=" + posListener + "&font=giro&entity=" + AppConfig.entityAlert;
                     new HttpPostAsyncTask(postData, RequestType.REFRESH_ALERT, callback)
                             .execute(url);
                     Log.e(TAG, "GIRO ALERT = " + url);
@@ -347,12 +340,12 @@ public class AlertIntentService extends IntentService implements SensorEventList
         posListener = String.valueOf(latitude + "," + longitude);
 
 
-        String url = baseURL + publishPosString + "?pos=" + posListener + "&entity=" + entity;
+        String url = AppConfig.baseURL + AppConfig.publishPosString + "?pos=" + posListener + "&entity=" + AppConfig.entity;
         new HttpPostAsyncTask(postData, RequestType.REFRESH_POS, callback)
                 .execute(url);
         Log.e(TAG,"GPS POS = " + url);
         if (gpsService) {
-            url = baseURL + publishAlertString + "?pos=" + posListener + "&font=gps&entity=" + entityAlert;
+            url = AppConfig.baseURL + AppConfig.publishAlertString + "?pos=" + posListener + "&font=gps&entity=" + AppConfig.entityAlert;
             new HttpPostAsyncTask(postData, RequestType.REFRESH_ALERT, callback)
                     .execute(url);
             Log.e(TAG,"GPS ALERT = " + url);
@@ -373,28 +366,16 @@ public class AlertIntentService extends IntentService implements SensorEventList
         return true;
     }
 
-    public boolean getTimerStatus (){
-        boolean result;
-        try{
-            result = timerRunning;
-        }
-        catch (Exception e) {
-            result = false;
-        }
-
-        return false;
-    }
-
     @SuppressLint("MissingPermission")
     protected void getLocation() {
         Log.d(TAG, "Get Location");
         if (isLocationEnabled(AlertIntentService.this)) {
             locationManager = (LocationManager)  this.getSystemService(Context.LOCATION_SERVICE);
             criteria = new Criteria();
-            bestProvider = String.valueOf(locationManager.getBestProvider(criteria, true)).toString();
+            bestProvider = String.valueOf(locationManager.getBestProvider(criteria, true));
             Location location = locationManager.getLastKnownLocation(bestProvider);
             posListener = String.valueOf(latitude + "," + longitude);
-            if (location != null) {
+            if (null != location) {
                 Log.d(TAG, "Get Location - location != null");
                 latitude = location.getLatitude();
                 longitude = location.getLongitude();

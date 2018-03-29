@@ -134,6 +134,7 @@ public class HttpPostAsyncTask extends AsyncTask<String, Void, Void> {
                         callback.completionHandler(true, type, "Configurações salvas no servidor.");
                          break;
                   default:
+                      callback.completionHandler(false, type, "Erro.");
                       break;
               }
 
