@@ -2,8 +2,6 @@ package com.conecta.restserver;
 
 import android.Manifest;
 import android.app.ActivityManager;
-import android.app.Notification;
-import android.app.NotificationManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -11,22 +9,22 @@ import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.os.IBinder;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.NotificationCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Button;
-import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Switch;
+import android.widget.TextView;
 import android.widget.Toast;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Timer;
 
 public class MainActivity extends AppCompatActivity implements CustomCallback {
 
@@ -47,6 +45,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
     private final String publishAlertString = "alertpublish";
     private final String pullAlertString = "alertpull";
     private final String alertDeleteString = "alertsdelete";
+    TextView timerStatus;
 
     Map<String, String> postData = new HashMap<>();
     Button pullPosButton;
@@ -54,6 +53,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
     Button stopService, startService, checkService;
     Button saveConfig;
     Switch switchGiro, switchGps, switchTransmit;
+    Timer timer = new Timer();
 
    AlertIntentService mService;
     boolean mBound = false;
@@ -61,6 +61,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
     List<TrackerPos> trackerPosList = new ArrayList<>();
     TrackerAdapter adapterTracker;
     OperationMode operationMode;
+    boolean configReady;
 
     String posListener = "0.0,0.0";
     CustomCallback callback = new CustomCallback() {
@@ -124,11 +125,14 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                                 gpsTime.setText(config.getGpsTime());
                                 gpsDist.setText(config.getGpsDist());
                                 giroSense.setText(config.getGiroSense());
+                                timerInterval.setText(config.getTimerTransmit());
                                 Log.d(TAG, "Config: " + config.toString());
-                                Toast.makeText(MainActivity.this, "Obtidas as configurações no servidor.", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(MainActivity.this, "Obtidas as configurações no servidor.",
+                                        Toast.LENGTH_SHORT).show();
                             }
                         }
                     });
+                    configReady = true;
                     break;
                 default:
                     break;
@@ -158,8 +162,8 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
     @Override
     protected void onStart() {
         super.onStart();
-        new HttpPostAsyncTask(postData, RequestType.CONFIG_PULL, callback)
-                .execute(baseURL + configString + "?entity=" + entityConfig + "&action=pull");
+        checkService.performClick();
+        //while (!configReady) {}
         startService.performClick();
     }
 
@@ -167,10 +171,10 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
     protected void onStop() {
         super.onStop();
         // Unbind from the service
-       // if (mBound) {
-       //     unbindService(mConnection);
-       //     mBound = false;
-       // }
+        if (mBound) {
+            unbindService(mConnection);
+            mBound = false;
+       }
     }
 
     /** Defines callbacks for service binding, passed to bindService() */
@@ -201,14 +205,10 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
 
         Intent intent = new Intent(this, AlertIntentService.class);
         bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
-
+        timerStatus = findViewById(R.id.timerStatusTxt);
 
         setContentView(R.layout.activity_main);
         Log.d(TAG, "onCreate ");
-
-        Log.d(TAG, "Busca Config ");
-        //checkService.performClick();
-
         alertEntities.add("motoalert");
         alertEntities.add("alertcarro");
         alertEntities.add("unknowalert");
@@ -231,38 +231,18 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
         switchGps = findViewById(R.id.switchGps);
         switchTransmit = findViewById(R.id.switchTransmitter);
         switchTransmit.setChecked(true);
-        //startService.performClick();
+
         final ListView trackerList = findViewById(R.id.lista);
 
-        switchTransmit.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-
-                if (mService.stopTimer() == null) Log.d(TAG, "Timer null.");
-                operationMode = switchTransmit.isChecked() ? OperationMode.TRANSMITER : OperationMode.RECEPTOR;
-                    if (mBound) {
-                        Toast.makeText(MainActivity.this,
-                                mService.startTimer(Long.parseLong(timerInterval.getText().toString()), operationMode),
-
-                                Toast.LENGTH_SHORT).show();
-                    } else {
-                        String message = "Não foi possível iniciar o serviço.";
-                        Toast.makeText(MainActivity.this,
-                                message,Toast.LENGTH_SHORT).show();
-                        Log.d(TAG, message);
-                    }
-
-
-            }
-        });
-
-       saveConfig.setOnClickListener(new View.OnClickListener() {
+        saveConfig.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 String gpsStatus = switchGps.isChecked() ? "on" : "off";
                 String giroStatus = switchGiro.isChecked() ? "on" : "off";
                 String url = baseURL + configString + "?entity=" + entityConfig
                         + "&action=publish&girostatus="+ giroStatus.toString() +"&gpsstatus=" + gpsStatus.toString()
                         + "&gpstime=" + gpsTime.getText().toString() + "&gpsdist=" + gpsDist.getText().toString()
-                        + "&girosense="+ giroSense.getText().toString();
+                        + "&girosense="+ giroSense.getText().toString()
+                        + "&timertransmit=" + timerInterval.getText().toString();
                 Log.d(TAG, "Save config:" + url);
                 new HttpPostAsyncTask(postData, RequestType.CONFIG_PUBLISH, callback).execute(url);
             }
@@ -321,11 +301,11 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
         startService.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 Log.d(TAG, "Start Service");
-
                 if (mBound) {
                    operationMode = switchTransmit.isChecked() ? OperationMode.TRANSMITER : OperationMode.RECEPTOR;
                    Toast.makeText(MainActivity.this,
-                           mService.startTimer(Long.parseLong(timerInterval.getText().toString()), operationMode),
+                           mService.startTimer(Long.parseLong(timerInterval.getText().toString()), operationMode,
+                                   gpsDist.getText().toString(), gpsTime.getText().toString()),
                            Toast.LENGTH_SHORT).show();
                 } else {
                     Toast.makeText(MainActivity.this,
@@ -368,6 +348,9 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                     10);
             return;
         }
+
+        Log.d(TAG, "Busca Config ");
+
     }
 
     @Override

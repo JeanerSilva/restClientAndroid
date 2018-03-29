@@ -69,7 +69,7 @@ public class AlertIntentService extends IntentService implements SensorEventList
     public double longitude;
     public Criteria criteria;
     public String bestProvider;
-    Timer timer, locationTimer;
+    Timer timer;
     String gpsDist;
     String gpsTime;
     String giroSense;
@@ -79,6 +79,8 @@ public class AlertIntentService extends IntentService implements SensorEventList
     String NOTIFICATION_CHANNEL_ID = "my_channel_id_01";
     int f=0;
     boolean configReady;
+    boolean timerRunning;
+    String timerInterval;
 
     CustomCallback callback = new CustomCallback() {
         @Override
@@ -95,8 +97,16 @@ public class AlertIntentService extends IntentService implements SensorEventList
                     gpsTime = config.getGpsTime();
                     gpsDist = config.getGpsDist();
                     giroSense = config.getGiroSense();
+
                     configReady = true;
+                    getLocation();
                     Log.d(TAG, "statusGiroString: " + config);
+                    //if (timerInterval.equals(config.getTimerTransmit())) {
+
+                        // timer.cancel();
+                      //  startTimer(Long.valueOf(Long.valueOf(config.getTimerTransmit()), operationMode, gpsDist, gpsTime ));
+                      //String startTimer       (long TIME, final OperationMode _operationMode, String gpsDist, String gpsTime)
+                   // }
                     }
                     break;
                 case ALERT_PULL:
@@ -218,8 +228,9 @@ public class AlertIntentService extends IntentService implements SensorEventList
     public String stopTimer(){
         Log.d(TAG, "Timer Stopped.");
         try {
+            timerRunning = true;
             timer.cancel();
-            locationTimer.cancel();
+
         } catch (Exception e) {
             return null;
         }
@@ -227,10 +238,15 @@ public class AlertIntentService extends IntentService implements SensorEventList
         return "Timers Stopped";
     }
 
-    public String startTimer (long TIME, final OperationMode _operationMode){
+    public String startTimer (long TIME, final OperationMode _operationMode, String gpsDist, String gpsTime){
+        timerRunning = true;
+        timerInterval = String.valueOf(TIME);
+        this.gpsDist = gpsDist;
+        this.gpsTime = gpsTime;
         buscaConfig();
-        while (!configReady) {}
+
         getLocation();
+
         operationMode = _operationMode;
         String message = "Timer iniciado - timerInterval: " + TIME + ". Modo de operação: " + _operationMode;
         Log.d(TAG, message);
@@ -248,42 +264,31 @@ public class AlertIntentService extends IntentService implements SensorEventList
             notificationManager.createNotificationChannel(notificationChannel);
         }
 
-
-
-        locationTimer = new Timer();
-        locationTimer.scheduleAtFixedRate(
-                new TimerTask() {
-                    @Override
-                    public void run() {
-                        if (configReady)
-                        Log.d(TAG, "getLocation each "+ 60 * Long.parseLong(gpsTime) /1000+ " seconds.");
-                    }
-                },
-                gpsTime == null ? 1000L :Long.parseLong(gpsTime) , gpsTime == null ? 10000L :Long.parseLong(gpsTime) * 10);
-
         timer = new Timer();
         timer.scheduleAtFixedRate(
                new TimerTask() {
                     @Override
                     public void run() {
-                        if (configReady) {
                             Log.d(TAG, "Timer running - modo: " + operationMode);
                             buscaAlertas();
-                            buscaPos();
+                            //buscaPos();
                             if (operationMode.equals(OperationMode.TRANSMITER)) {
-
-                                buscaConfig(); //busca config e inicia gps
+                                buscaConfig();
                                 if (giroService) {
                                     Log.d(TAG, " Giro running.");
-                                    SM = (SensorManager) getSystemService(SENSOR_SERVICE);
-                                    acellSensor = SM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-                                    SM.registerListener(AlertIntentService.this, acellSensor, SensorManager.SENSOR_DELAY_NORMAL);
+                                    if (SM == null) {
+                                        SM = (SensorManager) getSystemService(SENSOR_SERVICE);
+                                        acellSensor = SM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+                                        SM.registerListener(AlertIntentService.this, acellSensor, SensorManager.SENSOR_DELAY_NORMAL);
+                                    }
                                 } else {
                                     Log.d(TAG, " Giro stopped");
-                                    if (SM != null) SM.unregisterListener(AlertIntentService.this);
+                                    if (SM != null) {
+                                        SM.unregisterListener(AlertIntentService.this);
+                                        SM = null;
+                                    }
                                 }
                             }
-                        }
                     }
                 },
         TIME, TIME);
@@ -353,6 +358,18 @@ public class AlertIntentService extends IntentService implements SensorEventList
         return true;
     }
 
+    public boolean getTimerStatus (){
+        boolean result;
+        try{
+            result = timerRunning;
+        }
+        catch (Exception e) {
+            result = false;
+        }
+
+        return false;
+    }
+
     @SuppressLint("MissingPermission")
     protected void getLocation() {
         Log.e(TAG, "Get Location");
@@ -363,7 +380,7 @@ public class AlertIntentService extends IntentService implements SensorEventList
             criteria = new Criteria();
             bestProvider = String.valueOf(locationManager.getBestProvider(criteria, true)).toString();
             Location location = locationManager.getLastKnownLocation(bestProvider);
-            /*
+
             if (location != null) {
                 Log.e(TAG, "Get Location - location != null");
                 Log.d(TAG, "GPS is on");
@@ -372,15 +389,13 @@ public class AlertIntentService extends IntentService implements SensorEventList
                 Log.e(TAG, "\n\nlatitude:" + latitude + " longitude:" + longitude + "\n\n");
                 //Toast.makeText(AlertIntentService.this, "latitude:" + latitude + " longitude:" + longitude, Toast.LENGTH_SHORT).show();
             }
-
+            /*
             else{
             */
-            latitude = location.getLatitude();
-            longitude = location.getLongitude();
-                Log.e(TAG, "Get Location - else - location manager");
+
+            Log.e(TAG, "Get Location - else - location manager");
             locationManager.requestLocationUpdates(bestProvider, Long.valueOf(gpsTime), Long.valueOf(gpsDist), AlertIntentService.this);
 
-            Log.e(TAG, "\n\nlatitude:" + latitude + " longitude:" + longitude + "\n\n");
             //}
         }
         else

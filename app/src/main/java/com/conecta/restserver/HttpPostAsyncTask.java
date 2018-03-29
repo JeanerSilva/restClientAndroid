@@ -116,6 +116,8 @@ public class HttpPostAsyncTask extends AsyncTask<String, Void, Void> {
                                  config.setGpsDist(jsonReader.nextString());
                              } else if (name.equals("giroSense")) {
                                  config.setGiroSense(jsonReader.nextString());
+                             } else if (name.equals("timerTransmit")) {
+                                 config.setTimerTransmit(jsonReader.nextString());
                              } else {
                                  jsonReader.skipValue();
                              }
