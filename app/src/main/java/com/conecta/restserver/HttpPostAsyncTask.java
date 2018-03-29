@@ -50,7 +50,7 @@ public class HttpPostAsyncTask extends AsyncTask<String, Void, Void> {
             urlConnection.setRequestProperty("Content-Type", "application/json");
             urlConnection.setRequestMethod("GET");
             urlConnection.setRequestProperty("User-Agent", "my-rest-app-v0.1");
-/*
+            /*
             if (this.postData != null) {
                 OutputStreamWriter writer = new OutputStreamWriter(urlConnection.getOutputStream());
                 writer.write(postData.toString());

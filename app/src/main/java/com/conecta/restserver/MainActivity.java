@@ -129,6 +129,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                                 Log.d(TAG, "Config: " + config.toString());
                                 Toast.makeText(MainActivity.this, "Obtidas as configurações no servidor.",
                                         Toast.LENGTH_SHORT).show();
+                                startService.performClick();
                             }
                         }
                     });
@@ -164,7 +165,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
         super.onStart();
         checkService.performClick();
         //while (!configReady) {}
-        startService.performClick();
+        //startService.performClick();
     }
 
     @Override
