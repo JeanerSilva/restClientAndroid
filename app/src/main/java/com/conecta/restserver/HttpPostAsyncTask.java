@@ -118,6 +118,8 @@ public class HttpPostAsyncTask extends AsyncTask<String, Void, Void> {
                                  config.setGiroSense(jsonReader.nextString());
                              } else if (name.equals("timerTransmit")) {
                                  config.setTimerTransmit(jsonReader.nextString());
+                             } else if (name.equals("whatsApp")) {
+                                 config.setWhatsApp(jsonReader.nextString());
                              } else {
                                  jsonReader.skipValue();
                              }

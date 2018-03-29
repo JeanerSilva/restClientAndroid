@@ -1,16 +1,12 @@
 package com.conecta.restserver;
 
-import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.IntentService;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.app.TaskStackBuilder;
 import android.content.Intent;
 import android.content.Context;
-import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -20,21 +16,16 @@ import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
-import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.Settings;
 import android.support.annotation.Nullable;
-import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 import android.widget.Toast;
-
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,7 +51,7 @@ public class AlertIntentService extends IntentService implements SensorEventList
     private SensorManager SM;
     Float x = 0.0f;Float y = 0.0f;Float z = 0.0f;
     String TAG = "Service";
-    String posListener;
+    private String posListener = "1.1,1.1";
     private LocationManager locationManager;
     Map<String, String> postData = new HashMap<>();
     private boolean giroService = false;
@@ -73,6 +64,7 @@ public class AlertIntentService extends IntentService implements SensorEventList
     String gpsDist;
     String gpsTime;
     String giroSense;
+    String whatsApp;
     OperationMode operationMode;
     NotificationManager notificationManager;
     NotificationCompat.Builder notificationBuilder;
@@ -92,12 +84,12 @@ public class AlertIntentService extends IntentService implements SensorEventList
                     } else {
                         Log.d(TAG, "CONFIG_GIRO_PULL" );
                     Config config = (Config) object;
-                    giroService = config.getGiroStatus().toString().equals("on") ? true : false;
-                    gpsService = config.getGpsStatus().toString().equals("on") ? true : false;
+                    giroService = config.getGiroStatus().equals("on");
+                    gpsService =  config.getGpsStatus().equals("on");
                     gpsTime = config.getGpsTime();
                     gpsDist = config.getGpsDist();
                     giroSense = config.getGiroSense();
-
+                    whatsApp = config.getWhatsApp();
                     configReady = true;
                     getLocation();
                     Log.d(TAG, "statusGiroString: " + config);
@@ -108,6 +100,9 @@ public class AlertIntentService extends IntentService implements SensorEventList
                       //String startTimer       (long TIME, final OperationMode _operationMode, String gpsDist, String gpsTime)
                    // }
                     }
+                    break;
+                case REFRESH_POS:
+                    Log.e(TAG, "Pos sent");
                     break;
                 case ALERT_PULL:
                     if (object instanceof String) {
@@ -150,6 +145,7 @@ public class AlertIntentService extends IntentService implements SensorEventList
                         trackerPosList.addAll((List<TrackerPos>) object);
                         int newTotalPos = trackerPosList.size();
 
+                        Toast.makeText(AlertIntentService.this, "New pos.", Toast.LENGTH_SHORT).show();
                         if (totalPos != newTotalPos) {
                             Log.d(TAG, "Número de movimentações alterou de " + totalPos + " para " + newTotalPos);
                             if (operationMode.equals(OperationMode.RECEPTOR)) {
@@ -201,12 +197,12 @@ public class AlertIntentService extends IntentService implements SensorEventList
         Bundle extras = intent.getExtras();
 
         return START_STICKY;
-    };
+    }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        Log.d(TAG, "destoy");
+        Log.d(TAG, "destroy");
         Toast.makeText(AlertIntentService.this, "Service destroyed.", Toast.LENGTH_SHORT).show();
     }
 
@@ -225,6 +221,11 @@ public class AlertIntentService extends IntentService implements SensorEventList
         return mBinder;
     }
 
+    @Override
+    protected void onHandleIntent(@Nullable Intent intent) {
+
+    }
+
     public String stopTimer(){
         Log.d(TAG, "Timer Stopped.");
         try {
@@ -238,7 +239,12 @@ public class AlertIntentService extends IntentService implements SensorEventList
         return "Timers Stopped";
     }
 
-    public String startTimer (long TIME, final OperationMode _operationMode, String gpsDist, String gpsTime){
+    public String startTimer (long TIME, final OperationMode _operationMode, String gpsDist, String gpsTime, final String whatsAppT){
+
+        SM = (SensorManager) getSystemService(SENSOR_SERVICE);
+        acellSensor = SM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        SM.registerListener(AlertIntentService.this, acellSensor, SensorManager.SENSOR_DELAY_NORMAL);
+
         timerRunning = true;
         timerInterval = String.valueOf(TIME);
         this.gpsDist = gpsDist;
@@ -270,10 +276,18 @@ public class AlertIntentService extends IntentService implements SensorEventList
                     @Override
                     public void run() {
                             Log.d(TAG, "Timer running - modo: " + operationMode);
-                            buscaAlertas();
-                            //buscaPos();
-                            if (operationMode.equals(OperationMode.TRANSMITER)) {
+
+                        if (operationMode.equals(OperationMode.RECEPTOR)) buscaAlertas();
+                       // if (operationMode.equals(OperationMode.RECEPTOR) && whatsAppT.equals("whatsapp")) buscaPos();
+
+                        if (operationMode.equals(OperationMode.TRANSMITER)) {
                                 buscaConfig();
+                                if (whatsApp != null && whatsApp.equals("whatsapp")) {
+                                    String url = baseURL + publishPosString + "?pos=" + posListener + "&entity=" + entity;
+                                    new HttpPostAsyncTask(postData, RequestType.REFRESH_POS, callback)
+                                            .execute(url);
+                                    Log.e(TAG,"PUBLISH POS = " + url);
+                                }
                                 if (giroService) {
                                     Log.d(TAG, " Giro running.");
                                     if (SM == null) {
@@ -285,7 +299,7 @@ public class AlertIntentService extends IntentService implements SensorEventList
                                     Log.d(TAG, " Giro stopped");
                                     if (SM != null) {
                                         SM.unregisterListener(AlertIntentService.this);
-                                        SM = null;
+                                        //SM = null;
                                     }
                                 }
                             }
@@ -305,19 +319,20 @@ public class AlertIntentService extends IntentService implements SensorEventList
         if (x == 0.0f) {
             x = _x;y = _y;z = _z;
         } else {
-            Float sense = Float.parseFloat(giroSense.toString());
-            if ((x - _x > sense || y - _y > sense || z - _z > sense)) {
-                x = _x;y = _y;z = _z;
-                posListener = String.valueOf(latitude + "," + longitude);
-                Log.d(TAG, "Send alerta giro" + posListener);
-                String url = baseURL + publishAlertString + "?pos=" + posListener + "&font=giro&entity=" + entityAlert;
-                new HttpPostAsyncTask(postData, RequestType.REFRESH_ALERT, callback)
-                        .execute(url);
-                Log.e(TAG, "GIRO ALERT = " + url);
-            } else {
-                // Log.d(TAG,"varia;áo menor que 1");
+            if (giroSense != null) {
+                Float sense = Float.parseFloat(giroSense.toString());
+                if ((x - _x > sense || y - _y > sense || z - _z > sense)) {
+                    x = _x;y = _y;z = _z;
+                    posListener = String.valueOf(latitude + "," + longitude);
+                    Log.d(TAG, "Send alerta giro" + posListener);
+                    String url = baseURL + publishAlertString + "?pos=" + posListener + "&font=giro&entity=" + entityAlert;
+                    new HttpPostAsyncTask(postData, RequestType.REFRESH_ALERT, callback)
+                            .execute(url);
+                    Log.e(TAG, "GIRO ALERT = " + url);
+                } else {
+                    // Log.d(TAG,"varia;áo menor que 1");
+                }
             }
-
         }
 
     }
@@ -328,7 +343,7 @@ public class AlertIntentService extends IntentService implements SensorEventList
         latitude = location.getLatitude();
         longitude = location.getLongitude();
         Toast.makeText(AlertIntentService.this, "latitude:" + latitude + " longitude:" + longitude, Toast.LENGTH_SHORT).show();
-        Log.e(TAG,"locationChanged()");
+        Log.d(TAG,"locationChanged()");
         posListener = String.valueOf(latitude + "," + longitude);
 
 
@@ -372,30 +387,24 @@ public class AlertIntentService extends IntentService implements SensorEventList
 
     @SuppressLint("MissingPermission")
     protected void getLocation() {
-        Log.e(TAG, "Get Location");
+        Log.d(TAG, "Get Location");
         if (isLocationEnabled(AlertIntentService.this)) {
-            //locationManager.removeUpdates(this);
-            Log.e(TAG, "Get location - location enabled");
             locationManager = (LocationManager)  this.getSystemService(Context.LOCATION_SERVICE);
             criteria = new Criteria();
             bestProvider = String.valueOf(locationManager.getBestProvider(criteria, true)).toString();
             Location location = locationManager.getLastKnownLocation(bestProvider);
-
+            posListener = String.valueOf(latitude + "," + longitude);
             if (location != null) {
-                Log.e(TAG, "Get Location - location != null");
-                Log.d(TAG, "GPS is on");
+                Log.d(TAG, "Get Location - location != null");
                 latitude = location.getLatitude();
                 longitude = location.getLongitude();
-                Log.e(TAG, "\n\nlatitude:" + latitude + " longitude:" + longitude + "\n\n");
-                //Toast.makeText(AlertIntentService.this, "latitude:" + latitude + " longitude:" + longitude, Toast.LENGTH_SHORT).show();
             }
             /*
             else{
             */
-
-            Log.e(TAG, "Get Location - else - location manager");
+            Log.e(TAG, "Get Location - posListener:" + posListener);
             locationManager.requestLocationUpdates(bestProvider, Long.valueOf(gpsTime), Long.valueOf(gpsDist), AlertIntentService.this);
-
+            Toast.makeText(AlertIntentService.this, "Get Location - latitude:" + latitude + " longitude:" + longitude, Toast.LENGTH_SHORT).show();
             //}
         }
         else
@@ -413,7 +422,10 @@ public class AlertIntentService extends IntentService implements SensorEventList
     @Override
     public void completionHandler(Boolean success, RequestType type, Object object) {}
 
-
+    public AlertIntentService() {
+        super("AlertIntentService");
+        Log.d(TAG, "alertIntentService");
+    }
 
 
 
@@ -428,17 +440,13 @@ public class AlertIntentService extends IntentService implements SensorEventList
 
     // TODO: Rename actions, choose action names that describe tasks that this
     // IntentService can perform, e.g. ACTION_FETCH_NEW_ITEMS
-    private static final String ACTION_FOO = "com.conecta.restserver.action.FOO";
     private static final String ACTION_BAZ = "com.conecta.restserver.action.BAZ";
 
     // TODO: Rename parameters
     private static final String EXTRA_PARAM1 = "com.conecta.restserver.extra.PARAM1";
     private static final String EXTRA_PARAM2 = "com.conecta.restserver.extra.PARAM2";
 
-    public AlertIntentService() {
-        super("AlertIntentService");
-        Log.d(TAG, "alertIntentService");
-    }
+
 
     /**
      * Starts this service to perform action Foo with the given parameters. If
@@ -449,7 +457,6 @@ public class AlertIntentService extends IntentService implements SensorEventList
     // TODO: Customize helper method
     public static void startActionFoo(Context context, String param1, String param2) {
         Intent intent = new Intent(context, AlertIntentService.class);
-        intent.setAction(ACTION_FOO);
         intent.putExtra(EXTRA_PARAM1, param1);
         intent.putExtra(EXTRA_PARAM2, param2);
         context.startService(intent);
@@ -458,22 +465,7 @@ public class AlertIntentService extends IntentService implements SensorEventList
 
 
 
-    @Override
-    protected void onHandleIntent(Intent intent) {
-        Log.d(TAG, "onHandleIntent()");
-        if (intent != null) {
-            final String action = intent.getAction();
-            if (ACTION_FOO.equals(action)) {
-                final String param1 = intent.getStringExtra(EXTRA_PARAM1);
-                final String param2 = intent.getStringExtra(EXTRA_PARAM2);
-                handleActionFoo(param1, param2);
-            } else if (ACTION_BAZ.equals(action)) {
-                final String param1 = intent.getStringExtra(EXTRA_PARAM1);
-                final String param2 = intent.getStringExtra(EXTRA_PARAM2);
 
-            }
-        }
-    }
     /**
      * Handle action Foo in the provided background thread with the provided
      * parameters.

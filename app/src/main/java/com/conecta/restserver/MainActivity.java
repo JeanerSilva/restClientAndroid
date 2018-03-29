@@ -52,7 +52,8 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
     Button callAlertActivity;
     Button stopService, startService, checkService;
     Button saveConfig;
-    Switch switchGiro, switchGps, switchTransmit;
+    Switch switchGiro, switchGps, switchTransmit, switchWhatsApp;
+
     Timer timer = new Timer();
 
    AlertIntentService mService;
@@ -63,7 +64,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
     OperationMode operationMode;
     boolean configReady;
 
-    String posListener = "0.0,0.0";
+    //String posListener = "0.0,0.0";
     CustomCallback callback = new CustomCallback() {
         @Override
         public void completionHandler(Boolean success, RequestType type, final Object object) {
@@ -122,6 +123,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                                 Config config = (Config) object;
                                 switchGiro.setChecked(config.getGiroStatus().toString().equals("on") ? true : false);
                                 switchGps.setChecked(config.getGpsStatus().toString().equals("on") ? true : false);
+                                switchWhatsApp.setChecked(config.getWhatsApp().toString().equals("whatsapp") ? true : false);
                                 gpsTime.setText(config.getGpsTime());
                                 gpsDist.setText(config.getGpsDist());
                                 giroSense.setText(config.getGiroSense());
@@ -230,6 +232,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
 
         switchGiro = findViewById(R.id.giroAlertSwitsh);
         switchGps = findViewById(R.id.switchGps);
+        switchWhatsApp = findViewById(R.id.switchWhatsApp);
         switchTransmit = findViewById(R.id.switchTransmitter);
         switchTransmit.setChecked(true);
 
@@ -239,11 +242,13 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
             public void onClick(View v) {
                 String gpsStatus = switchGps.isChecked() ? "on" : "off";
                 String giroStatus = switchGiro.isChecked() ? "on" : "off";
+                String whatsApp = switchWhatsApp.isChecked() ? "whatsapp" : "";
                 String url = baseURL + configString + "?entity=" + entityConfig
                         + "&action=publish&girostatus="+ giroStatus.toString() +"&gpsstatus=" + gpsStatus.toString()
                         + "&gpstime=" + gpsTime.getText().toString() + "&gpsdist=" + gpsDist.getText().toString()
                         + "&girosense="+ giroSense.getText().toString()
-                        + "&timertransmit=" + timerInterval.getText().toString();
+                        + "&timertransmit=" + timerInterval.getText().toString()
+                        + "&whatsapp=" + whatsApp;
                 Log.d(TAG, "Save config:" + url);
                 new HttpPostAsyncTask(postData, RequestType.CONFIG_PUBLISH, callback).execute(url);
             }
@@ -304,9 +309,10 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                 Log.d(TAG, "Start Service");
                 if (mBound) {
                    operationMode = switchTransmit.isChecked() ? OperationMode.TRANSMITER : OperationMode.RECEPTOR;
+                    String whatsAppT = switchWhatsApp.isChecked() ? "whatsapp" : "";
                    Toast.makeText(MainActivity.this,
                            mService.startTimer(Long.parseLong(timerInterval.getText().toString()), operationMode,
-                                   gpsDist.getText().toString(), gpsTime.getText().toString()),
+                                   gpsDist.getText().toString(), gpsTime.getText().toString(), whatsAppT),
                            Toast.LENGTH_SHORT).show();
                 } else {
                     Toast.makeText(MainActivity.this,
