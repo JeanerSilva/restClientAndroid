@@ -1,17 +1,19 @@
-package com.conecta.restserver;
+package com.conecta.util;
 
 import android.os.AsyncTask;
 import android.util.JsonReader;
 import android.util.Log;
-import android.widget.Toast;
+
+import com.conecta.enums.RequestType;
+import com.conecta.models.Alert;
+import com.conecta.models.Config;
+import com.conecta.models.TrackerPos;
 
 import org.json.JSONObject;
 
-import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;

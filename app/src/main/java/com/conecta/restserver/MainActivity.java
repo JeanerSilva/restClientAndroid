@@ -20,32 +20,38 @@ import android.widget.ListView;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.conecta.adapters.TrackerAdapter;
+import com.conecta.enums.OperationMode;
+import com.conecta.enums.RequestType;
+import com.conecta.models.Config;
+import com.conecta.models.TrackerPos;
+import com.conecta.services.AlertIntentService;
+import com.conecta.util.CustomCallback;
+import com.conecta.util.HttpPostAsyncTask;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Timer;
+import static com.conecta.models.AppConfig.*;
 
 public class MainActivity extends AppCompatActivity implements CustomCallback {
     String TAG = "RestMain";
 
     private EditText gpsDist, gpsTime, timerInterval, giroSense;
     TextView timerStatus;
+    Button pullPosButton, callAlertActivity;
+    Button stopService, startService, checkService, saveConfig;
+    Switch switchGiro, switchGps, switchTransmit, switchWhatsApp;
+    AlertIntentService mService;
     ArrayList<String> alertEntities = new ArrayList<>();
     Map<String, String> postData = new HashMap<>();
-    Button pullPosButton;
-    Button callAlertActivity;
-    Button stopService, startService, checkService;
-    Button saveConfig;
-    Switch switchGiro, switchGps, switchTransmit, switchWhatsApp;
-
-    AlertIntentService mService;
-    boolean mBound = false;
-
     List<TrackerPos> trackerPosList = new ArrayList<>();
     TrackerAdapter adapterTracker;
     OperationMode operationMode;
     boolean configReady;
+    boolean mBound = false;
 
     //String posListener = "0.0,0.0";
     CustomCallback callback = new CustomCallback() {
@@ -148,14 +154,11 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
     protected void onStart() {
         super.onStart();
         checkService.performClick();
-        //while (!configReady) {}
-        //startService.performClick();
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        // Unbind from the service
         if (mBound) {
             unbindService(mConnection);
             mBound = false;
@@ -164,7 +167,6 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
 
     /** Defines callbacks for service binding, passed to bindService() */
     private ServiceConnection mConnection = new ServiceConnection() {
-
         @Override
         public void onServiceConnected(ComponentName className,
                                        IBinder service) {
@@ -181,8 +183,6 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
             mBound = false;
         }
     };
-
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -225,7 +225,8 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                 String gpsStatus = switchGps.isChecked() ? "on" : "off";
                 String giroStatus = switchGiro.isChecked() ? "on" : "off";
                 String whatsApp = switchWhatsApp.isChecked() ? "whatsapp" : "";
-                String url = AppConfig.baseURL + AppConfig.configString + "?entity=" + AppConfig.entityConfig
+                String url = baseURL + configString
+                        + "?entity="        + entityConfig
                         + "&action=publish"
                         + "&girostatus="    + giroStatus
                         + "&gpsstatus="     + gpsStatus
@@ -265,7 +266,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
             public void onClick(View v) {
                 Log.d(TAG, "Deletando posições");
             new HttpPostAsyncTask(postData, RequestType.REFRESH_POS, callback)
-                       .execute(AppConfig.baseURL + AppConfig.deletePosString + "?entity=" + AppConfig.entity);
+                       .execute(baseURL + deletePosString + "?entity=" + entity);
             }
         });
 
@@ -275,8 +276,8 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                 Log.d(TAG, "Check Service");
                 isMyServiceRunning(AlertIntentService.class);
                 new HttpPostAsyncTask(postData, RequestType.CONFIG_PULL, callback)
-                        .execute(AppConfig.baseURL + AppConfig.configString
-                                + "?entity=" + AppConfig.entityConfig
+                        .execute(baseURL + configString
+                                + "?entity=" + entityConfig
                                 + "&action=pull");
             }
         });
@@ -311,15 +312,11 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
         callAlertActivity.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 Intent intent = new Intent(MainActivity.this, AlertActivity.class);
-                /*
+
                 Bundle b = new Bundle();
-                b.putString("baseURL", AppConfig.baseURL);
-                b.putString("publishAlertString", AppConfig.publishAlertString);
-                b.putString("pullAlertString", AppConfig.pullAlertString);
-                b.putString("pullAlertString", AppConfig.pullAlertString);
                 b.putStringArrayList("alertEntities", alertEntities);
                 intent.putExtras(b);
-                */
+
                 startActivity(intent);
             }
         });
@@ -328,9 +325,9 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
             public void onClick(View v) {
                 Log.d(TAG, "pullPosButton ");
                 postData.clear();
-                postData.put("entity", AppConfig.entity);
+                postData.put("entity", entity);
                 new HttpPostAsyncTask(postData, RequestType.TRAKERPOS_PULL, callback)
-                        .execute(AppConfig.baseURL + AppConfig.pullPosString + "?entity=" + AppConfig.entity);
+                        .execute(baseURL + pullPosString + "?entity=" + entity);
             }
         });
 

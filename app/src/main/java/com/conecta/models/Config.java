@@ -1,4 +1,4 @@
-package com.conecta.restserver;
+package com.conecta.models;
 
 public class Config {
     private String gpsStatus;

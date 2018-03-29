@@ -1,11 +1,10 @@
-package com.conecta.restserver;
+package com.conecta.models;
 
 /**
  * Created by 1765 IRON on 25/03/2018.
  */
 
 public class TrackerPos {
-
     String pos;
     String time;
 

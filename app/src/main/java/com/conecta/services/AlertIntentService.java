@@ -1,4 +1,4 @@
-package com.conecta.restserver;
+package com.conecta.services;
 
 import android.annotation.SuppressLint;
 import android.app.IntentService;
@@ -25,6 +25,16 @@ import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 import android.widget.Toast;
+
+import com.conecta.enums.OperationMode;
+import com.conecta.enums.RequestType;
+import com.conecta.models.Alert;
+import com.conecta.models.Config;
+import com.conecta.models.TrackerPos;
+import com.conecta.restserver.R;
+import com.conecta.util.CustomCallback;
+import com.conecta.util.HttpPostAsyncTask;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -32,43 +42,29 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class AlertIntentService extends IntentService implements SensorEventListener, CustomCallback, LocationListener {
-    /*
-    private final String entity = "moto";
-    private final String publishPosString = "pospublish";
-    private final String entityAlert = "motoalert";
-    private final String publishAlertString = "alertpublish";
-    private final String pullAlertString = "alertpull";
-    private final String baseURL = "https://coliconwg.appspot.com/";
-    private final String configString = "config";
-    private final String entityConfig = "motoconfig";
-    private final String pullPosString = "pospull";
-    */
+import static com.conecta.models.AppConfig.*;
 
+public class AlertIntentService extends IntentService implements SensorEventListener, CustomCallback, LocationListener {
     private List<Alert> alertList = new ArrayList<>();
     List<TrackerPos> trackerPosList = new ArrayList<>();
     private Sensor acellSensor;
     private SensorManager SM;
-    Float x = 0.0f;Float y = 0.0f;Float z = 0.0f;
+    Float x = 0.0f, y = 0.0f, z = 0.0f;
     String TAG = "Service";
     private String posListener = "1.1,1.1";
     private LocationManager locationManager;
     Map<String, String> postData = new HashMap<>();
-    private boolean giroService = false;
-    private boolean gpsService = false;
-    public double latitude;
-    public double longitude;
+    private boolean giroService = false, gpsService = false;
+    public double latitude, longitude;
     public Criteria criteria;
     public String bestProvider;
     Timer timer;
-    String gpsDist;
-    String gpsTime;
-    String giroSense;
-    String whatsApp;
+    String gpsDist, gpsTime, giroSense, whatsApp;
     OperationMode operationMode;
     NotificationManager notificationManager;
     NotificationCompat.Builder notificationBuilder;
-    String NOTIFICATION_CHANNEL_ID = "my_channel_id_01";
+    String NOTIFICATION_CHANNEL_ID1 = "my_channel_id_01";
+    String NOTIFICATION_CHANNEL_ID2 = "my_channel_id_01";
     String timerInterval;
 
     CustomCallback callback = new CustomCallback() {
@@ -89,12 +85,6 @@ public class AlertIntentService extends IntentService implements SensorEventList
                     whatsApp = config.getWhatsApp();
                     getLocation();
                     Log.d(TAG, "statusGiroString: " + config);
-                    //if (timerInterval.equals(config.getTimerTransmit())) {
-
-                        // timer.cancel();
-                      //  startTimer(Long.valueOf(Long.valueOf(config.getTimerTransmit()), operationMode, gpsDist, gpsTime ));
-                      //String startTimer       (long TIME, final OperationMode _operationMode, String gpsDist, String gpsTime)
-                   // }
                     }
                     break;
                 case REFRESH_POS:
@@ -113,7 +103,8 @@ public class AlertIntentService extends IntentService implements SensorEventList
                         if (totalAlerts != newTotal) {
                             Log.d(TAG, "Alertas alterou de " + totalAlerts + " para " + newTotal);
                             if (operationMode.equals(OperationMode.RECEPTOR)) {
-                                notificationBuilder = new NotificationCompat.Builder(AlertIntentService.this, NOTIFICATION_CHANNEL_ID);
+                                notificationBuilder = new NotificationCompat.Builder(
+                                        AlertIntentService.this, NOTIFICATION_CHANNEL_ID1);
 
                                 notificationBuilder.setAutoCancel(true)
                                         .setDefaults(Notification.DEFAULT_ALL)
@@ -145,7 +136,8 @@ public class AlertIntentService extends IntentService implements SensorEventList
                         if (totalPos != newTotalPos) {
                             Log.d(TAG, "Número de movimentações alterou de " + totalPos + " para " + newTotalPos);
                             if (operationMode.equals(OperationMode.RECEPTOR)) {
-                                notificationBuilder = new NotificationCompat.Builder(AlertIntentService.this, NOTIFICATION_CHANNEL_ID);
+                                notificationBuilder = new NotificationCompat.Builder(
+                                        AlertIntentService.this, NOTIFICATION_CHANNEL_ID2);
 
                                 notificationBuilder.setAutoCancel(true)
                                         .setDefaults(Notification.DEFAULT_ALL)
@@ -171,19 +163,19 @@ public class AlertIntentService extends IntentService implements SensorEventList
     private void buscaConfig(){
         Log.d(TAG, "Busca Giro Status ");
         new HttpPostAsyncTask(postData, RequestType.CONFIG_PULL, callback)
-                .execute(AppConfig.baseURL + AppConfig.configString + "?entity=" + AppConfig.entityConfig  + "&action=pull");
+                .execute(baseURL + configString + "?entity=" + entityConfig  + "&action=pull");
     }
 
     private void buscaAlertas (){
-        Log.d(TAG, "Search alerts: " + AppConfig.entityAlert);
+        Log.d(TAG, "Search alerts: " + entityAlert);
         new HttpPostAsyncTask(postData, RequestType.ALERT_PULL, callback)
-                .execute(AppConfig.baseURL + AppConfig.pullAlertString + "?entity=" + AppConfig.entityAlert);
+                .execute(baseURL + pullAlertString + "?entity=" + entityAlert);
     }
 
     private void buscaPos (){
-        Log.d(TAG, "Search positions: " + AppConfig.entity);
+        Log.d(TAG, "Search positions: " + entity);
         new HttpPostAsyncTask(postData, RequestType.TRAKERPOS_PULL, callback)
-                .execute(AppConfig.baseURL + AppConfig.pullPosString + "?entity=" + AppConfig.entity);
+                .execute(baseURL + pullPosString + "?entity=" + entity);
     }
 
 
@@ -201,10 +193,10 @@ public class AlertIntentService extends IntentService implements SensorEventList
         Toast.makeText(AlertIntentService.this, "Service destroyed.", Toast.LENGTH_SHORT).show();
     }
 
-    IBinder mBinder = new LocalBinder();
+    public IBinder mBinder = new LocalBinder();
 
     public class LocalBinder extends Binder {
-        AlertIntentService getService() {
+        public AlertIntentService getService() {
             // Return this instance of LocalService so clients can call public methods
             return AlertIntentService.this;
         }
@@ -243,7 +235,7 @@ public class AlertIntentService extends IntentService implements SensorEventList
         this.gpsTime = gpsTime;
         buscaConfig();
 
-        getLocation();
+        //getLocation();
 
         operationMode = _operationMode;
         String message = "Timer iniciado - timerInterval: " + TIME + ". Modo de operação: " + _operationMode;
@@ -253,13 +245,24 @@ public class AlertIntentService extends IntentService implements SensorEventList
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             @SuppressLint("WrongConstant") NotificationChannel notificationChannel
-                    = new NotificationChannel(NOTIFICATION_CHANNEL_ID, "My Notifications", NotificationManager.IMPORTANCE_MAX);
+                    = new NotificationChannel(NOTIFICATION_CHANNEL_ID1, "My Notifications", NotificationManager.IMPORTANCE_MAX);
             notificationChannel.setDescription("Channel description");
             notificationChannel.enableLights(true);
             notificationChannel.setLightColor(Color.RED);
             notificationChannel.setVibrationPattern(new long[]{0, 1000, 500, 1000});
             notificationChannel.enableVibration(true);
             notificationManager.createNotificationChannel(notificationChannel);
+
+            @SuppressLint("WrongConstant") NotificationChannel notificationChannel2
+                    = new NotificationChannel(NOTIFICATION_CHANNEL_ID2, "My Notifications", NotificationManager.IMPORTANCE_MAX);
+            notificationChannel.setDescription("Channel description");
+            notificationChannel.enableLights(true);
+            notificationChannel.setLightColor(Color.RED);
+            notificationChannel.setVibrationPattern(new long[]{0, 1000, 500, 1000});
+            notificationChannel.enableVibration(true);
+            notificationManager.createNotificationChannel(notificationChannel2);
+
+
         }
 
         timer = new Timer();
@@ -275,7 +278,7 @@ public class AlertIntentService extends IntentService implements SensorEventList
                         if (operationMode.equals(OperationMode.TRANSMITER)) {
                                 buscaConfig();
                                 if (whatsApp != null && whatsApp.equals("whatsapp")) {
-                                    String url = AppConfig.baseURL + AppConfig.publishPosString + "?pos=" + posListener + "&entity=" + AppConfig.entity;
+                                    String url = baseURL + publishPosString + "?pos=" + posListener + "&entity=" + entity;
                                     new HttpPostAsyncTask(postData, RequestType.REFRESH_POS, callback)
                                             .execute(url);
                                     Log.e(TAG,"PUBLISH POS = " + url);
@@ -318,7 +321,7 @@ public class AlertIntentService extends IntentService implements SensorEventList
                     x = _x;y = _y;z = _z;
                     posListener = String.valueOf(latitude + "," + longitude);
                     Log.d(TAG, "Send alerta giro" + posListener);
-                    String url = AppConfig.baseURL + AppConfig.publishAlertString + "?pos=" + posListener + "&font=giro&entity=" + AppConfig.entityAlert;
+                    String url = baseURL + publishAlertString + "?pos=" + posListener + "&font=giro&entity=" + entityAlert;
                     new HttpPostAsyncTask(postData, RequestType.REFRESH_ALERT, callback)
                             .execute(url);
                     Log.e(TAG, "GIRO ALERT = " + url);
@@ -340,12 +343,12 @@ public class AlertIntentService extends IntentService implements SensorEventList
         posListener = String.valueOf(latitude + "," + longitude);
 
 
-        String url = AppConfig.baseURL + AppConfig.publishPosString + "?pos=" + posListener + "&entity=" + AppConfig.entity;
+        String url = baseURL + publishPosString + "?pos=" + posListener + "&entity=" + entity;
         new HttpPostAsyncTask(postData, RequestType.REFRESH_POS, callback)
                 .execute(url);
         Log.e(TAG,"GPS POS = " + url);
         if (gpsService) {
-            url = AppConfig.baseURL + AppConfig.publishAlertString + "?pos=" + posListener + "&font=gps&entity=" + AppConfig.entityAlert;
+            url = baseURL + publishAlertString + "?pos=" + posListener + "&font=gps&entity=" + entityAlert;
             new HttpPostAsyncTask(postData, RequestType.REFRESH_ALERT, callback)
                     .execute(url);
             Log.e(TAG,"GPS ALERT = " + url);

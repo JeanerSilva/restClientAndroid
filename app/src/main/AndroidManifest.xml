@@ -41,7 +41,7 @@
             android:value="@string/google_maps_key" />
 
         <service
-            android:name=".AlertIntentService"
+            android:name="com.conecta.services.AlertIntentService"
             android:exported="false" />
 
         <activity android:name=".AlertActivity" />

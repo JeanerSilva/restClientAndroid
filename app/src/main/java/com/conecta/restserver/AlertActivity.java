@@ -12,12 +12,17 @@ import android.widget.ListView;
 import android.widget.Spinner;
 import android.widget.Toast;
 
+import com.conecta.adapters.AlertAdapter;
+import com.conecta.enums.RequestType;
+import com.conecta.models.Alert;
+import com.conecta.models.AppConfig;
+import com.conecta.util.CustomCallback;
+import com.conecta.util.HttpPostAsyncTask;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import javax.net.ssl.HttpsURLConnection;
 
 public class AlertActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener, CustomCallback {
     String TAG = "RestAlerta";
@@ -73,6 +78,9 @@ public class AlertActivity extends AppCompatActivity implements AdapterView.OnIt
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_alert);
+        alertEntities = getIntent().getExtras().getStringArrayList("alertEntities");
+        Log.e(TAG, "alertEntities: " + alertEntities + " bundle: " + savedInstanceState) ;
+
         Button deleteButton;
         pullAlertButton = findViewById(R.id.atualizaAlerta);
         deleteButton = findViewById(R.id.deleteButton);

@@ -1,4 +1,6 @@
-package com.conecta.restserver;
+package com.conecta.util;
+
+import com.conecta.enums.RequestType;
 
 /**
  * Created by 1765 IRON on 26/03/2018.

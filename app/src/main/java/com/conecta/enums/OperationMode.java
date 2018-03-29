@@ -1,4 +1,4 @@
-package com.conecta.restserver;
+package com.conecta.enums;
 
 public enum OperationMode  {
     TRANSMITER,

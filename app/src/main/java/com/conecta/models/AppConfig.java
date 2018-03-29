@@ -1,4 +1,4 @@
-package com.conecta.restserver;
+package com.conecta.models;
 
 public class AppConfig {
    public static String baseURL = "https://coliconwg.appspot.com/";
@@ -12,4 +12,6 @@ public class AppConfig {
    public static String publishAlertString = "alertpublish";
    public static String pullAlertString = "alertpull";
    public static String alertDeleteString = "alertsdelete";
+
+
 }
