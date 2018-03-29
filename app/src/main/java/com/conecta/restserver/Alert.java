@@ -3,19 +3,16 @@ package com.conecta.restserver;
 /**
  * Created by 1765 IRON on 26/03/2018.
  */
-
 public class Alert {
     String pos;
-    String giro;
-    String mov;
+    String font;
     String time;
 
     public Alert() {}
 
-    public Alert(String pos, String giro, String mov, String time) {
+    public Alert(String pos, String font, String time) {
         this.pos = pos;
-        this.giro = giro;
-        this.mov = mov;
+        this.font = font;
         this.time = time;
     }
 
@@ -27,20 +24,12 @@ public class Alert {
         this.pos = pos;
     }
 
-    public String getGiro() {
-        return giro;
+    public String getFont() {
+        return font;
     }
 
-    public void setGiro(String giro) {
-        this.giro = giro;
-    }
-
-    public String getMov() {
-        return mov;
-    }
-
-    public void setMov(String mov) {
-        this.mov = mov;
+    public void setFont(String font) {
+        this.font = font;
     }
 
     public String getTime() {
@@ -51,15 +40,10 @@ public class Alert {
         this.time = time;
     }
 
-
     @Override
     public String toString() {
-        return "Alert [pos=" + pos + ", giro=" + giro + ", mov=" + mov + ", time=" + time + "]";
+        return "Alert [pos=" + pos + ", font=" + font + ", time=" + time + "]";
     }
-
-
-
-
 
 
 }

@@ -20,6 +20,7 @@ import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
@@ -84,66 +85,78 @@ public class AlertIntentService extends IntentService implements SensorEventList
         public void completionHandler(Boolean success, RequestType type, final Object object) {
             switch (type) {
                 case CONFIG_PULL:
-                    Log.d(TAG, "CONFIG_GIRO_PULL" );
+                    if (object instanceof String) {
+                        Log.d(TAG, object.toString());
+                    } else {
+                        Log.d(TAG, "CONFIG_GIRO_PULL" );
                     Config config = (Config) object;
                     giroService = config.getGiroStatus().toString().equals("on") ? true : false;
-                    gpsService = config.getGiroStatus().toString().equals("on") ? true : false;
+                    gpsService = config.getGpsStatus().toString().equals("on") ? true : false;
                     gpsTime = config.getGpsTime();
                     gpsDist = config.getGpsDist();
                     giroSense = config.getGiroSense();
                     configReady = true;
                     Log.d(TAG, "statusGiroString: " + config);
+                    }
                     break;
                 case ALERT_PULL:
-                    Log.d(TAG, "ALERT_PULL" );
-                    totalAlerts = alertList.size();
-                    alertList.clear();
-                    alertList.addAll((List<Alert>) object);
-                    int newTotal = alertList.size();
+                    if (object instanceof String) {
+                        Log.d(TAG, object.toString());
+                    } else {
+                        Log.d(TAG, "ALERT_PULL");
+                        totalAlerts = alertList.size();
+                        alertList.clear();
+                        alertList.addAll((List<Alert>) object);
+                        int newTotal = alertList.size();
 
-                    if (totalAlerts != newTotal) {
-                        Log.d(TAG, "Alertas alterou de " + totalAlerts + " para " + newTotal);
-                        if (operationMode.equals(OperationMode.RECEPTOR)) {
-                            notificationBuilder = new NotificationCompat.Builder(AlertIntentService.this, NOTIFICATION_CHANNEL_ID);
+                        if (totalAlerts != newTotal) {
+                            Log.d(TAG, "Alertas alterou de " + totalAlerts + " para " + newTotal);
+                            if (operationMode.equals(OperationMode.RECEPTOR)) {
+                                notificationBuilder = new NotificationCompat.Builder(AlertIntentService.this, NOTIFICATION_CHANNEL_ID);
 
-                            notificationBuilder.setAutoCancel(true)
-                                    .setDefaults(Notification.DEFAULT_ALL)
-                                    .setWhen(System.currentTimeMillis())
-                                    .setSmallIcon(R.drawable.ic_launcher_background)
-                                    .setTicker("Hearty365")
-                                    .setPriority(Notification.PRIORITY_MAX)
-                                    .setContentTitle("Alerta")
-                                    .setContentText("Alertas alterou de " + totalAlerts + " para " + newTotal)
-                                    .setContentInfo("Info");
+                                notificationBuilder.setAutoCancel(true)
+                                        .setDefaults(Notification.DEFAULT_ALL)
+                                        .setWhen(System.currentTimeMillis())
+                                        .setSmallIcon(R.drawable.ic_launcher_background)
+                                        .setTicker("Hearty365")
+                                        .setPriority(Notification.PRIORITY_MAX)
+                                        .setContentTitle("Alerta")
+                                        .setContentText("Alertas alterou de " + totalAlerts + " para " + newTotal)
+                                        .setContentInfo("Info");
 
-                            notificationManager.notify(/*notification id*/1, notificationBuilder.build());
+                                notificationManager.notify(/*notification id*/1, notificationBuilder.build());
+                            }
                         }
                     }
                     break;
 
                 case TRAKERPOS_PULL:
-                    Log.d(TAG, "TRAKERPOS_PULL" );
-                    totalPos = trackerPosList.size();
-                    trackerPosList.clear();
-                    trackerPosList.addAll((List<TrackerPos>) object);
-                    int newTotalPos = trackerPosList.size();
+                    if (object instanceof String) {
+                        Log.d(TAG, object.toString());
+                    } else {
+                        Log.d(TAG, "TRAKERPOS_PULL");
+                        totalPos = trackerPosList.size();
+                        trackerPosList.clear();
+                        trackerPosList.addAll((List<TrackerPos>) object);
+                        int newTotalPos = trackerPosList.size();
 
-                    if (totalPos != newTotalPos) {
-                        Log.d(TAG, "Número de movimentações alterou de " + totalPos + " para " + newTotalPos);
-                        if (operationMode.equals(OperationMode.RECEPTOR)) {
-                            notificationBuilder = new NotificationCompat.Builder(AlertIntentService.this, NOTIFICATION_CHANNEL_ID);
+                        if (totalPos != newTotalPos) {
+                            Log.d(TAG, "Número de movimentações alterou de " + totalPos + " para " + newTotalPos);
+                            if (operationMode.equals(OperationMode.RECEPTOR)) {
+                                notificationBuilder = new NotificationCompat.Builder(AlertIntentService.this, NOTIFICATION_CHANNEL_ID);
 
-                            notificationBuilder.setAutoCancel(true)
-                                    .setDefaults(Notification.DEFAULT_ALL)
-                                    .setWhen(System.currentTimeMillis())
-                                    .setSmallIcon(R.drawable.ic_launcher_background)
-                                    .setTicker("Hearty365")
-                                    .setPriority(Notification.PRIORITY_MAX)
-                                    .setContentTitle("Alerta")
-                                    .setContentText("Número de movimentações alterou de " + totalPos + " para " + newTotalPos)
-                                    .setContentInfo("Info");
+                                notificationBuilder.setAutoCancel(true)
+                                        .setDefaults(Notification.DEFAULT_ALL)
+                                        .setWhen(System.currentTimeMillis())
+                                        .setSmallIcon(R.drawable.ic_launcher_background)
+                                        .setTicker("Hearty365")
+                                        .setPriority(Notification.PRIORITY_MAX)
+                                        .setContentTitle("Alerta")
+                                        .setContentText("Número de movimentações alterou de " + totalPos + " para " + newTotalPos)
+                                        .setContentInfo("Info");
 
-                            notificationManager.notify(/*notification id*/1, notificationBuilder.build());
+                                notificationManager.notify(/*notification id*/1, notificationBuilder.build());
+                            }
                         }
                     }
                     break;
@@ -216,7 +229,8 @@ public class AlertIntentService extends IntentService implements SensorEventList
 
     public String startTimer (long TIME, final OperationMode _operationMode){
         buscaConfig();
-
+        while (!configReady) {}
+        getLocation();
         operationMode = _operationMode;
         String message = "Timer iniciado - timerInterval: " + TIME + ". Modo de operação: " + _operationMode;
         Log.d(TAG, message);
@@ -241,11 +255,11 @@ public class AlertIntentService extends IntentService implements SensorEventList
                 new TimerTask() {
                     @Override
                     public void run() {
-                        if (configReady) getLocation();
+                        if (configReady)
                         Log.d(TAG, "getLocation each "+ 60 * Long.parseLong(gpsTime) /1000+ " seconds.");
                     }
                 },
-                gpsTime == null ? 60000L :Long.parseLong(gpsTime) * 60, gpsTime == null ? 60000L :Long.parseLong(gpsTime) * 60);
+                gpsTime == null ? 1000L :Long.parseLong(gpsTime) , gpsTime == null ? 10000L :Long.parseLong(gpsTime) * 10);
 
         timer = new Timer();
         timer.scheduleAtFixedRate(
@@ -291,7 +305,7 @@ public class AlertIntentService extends IntentService implements SensorEventList
                 x = _x;y = _y;z = _z;
                 posListener = String.valueOf(latitude + "," + longitude);
                 Log.d(TAG, "Send alerta giro" + posListener);
-                String url = baseURL + publishAlertString + "?pos=" + posListener + "&giro=true&entity=" + entityAlert;
+                String url = baseURL + publishAlertString + "?pos=" + posListener + "&font=giro&entity=" + entityAlert;
                 new HttpPostAsyncTask(postData, RequestType.REFRESH_ALERT, callback)
                         .execute(url);
                 Log.e(TAG, "GIRO ALERT = " + url);
@@ -311,12 +325,14 @@ public class AlertIntentService extends IntentService implements SensorEventList
         Toast.makeText(AlertIntentService.this, "latitude:" + latitude + " longitude:" + longitude, Toast.LENGTH_SHORT).show();
         Log.e(TAG,"locationChanged()");
         posListener = String.valueOf(latitude + "," + longitude);
+
+
         String url = baseURL + publishPosString + "?pos=" + posListener + "&entity=" + entity;
         new HttpPostAsyncTask(postData, RequestType.REFRESH_POS, callback)
                 .execute(url);
         Log.e(TAG,"GPS POS = " + url);
         if (gpsService) {
-            url = baseURL + publishAlertString + "?pos=" + posListener + "&gps=true&entity=" + entityAlert;
+            url = baseURL + publishAlertString + "?pos=" + posListener + "&font=gps&entity=" + entityAlert;
             new HttpPostAsyncTask(postData, RequestType.REFRESH_ALERT, callback)
                     .execute(url);
             Log.e(TAG,"GPS ALERT = " + url);
@@ -339,22 +355,33 @@ public class AlertIntentService extends IntentService implements SensorEventList
 
     @SuppressLint("MissingPermission")
     protected void getLocation() {
+        Log.e(TAG, "Get Location");
         if (isLocationEnabled(AlertIntentService.this)) {
+            //locationManager.removeUpdates(this);
+            Log.e(TAG, "Get location - location enabled");
             locationManager = (LocationManager)  this.getSystemService(Context.LOCATION_SERVICE);
             criteria = new Criteria();
             bestProvider = String.valueOf(locationManager.getBestProvider(criteria, true)).toString();
             Location location = locationManager.getLastKnownLocation(bestProvider);
+            /*
             if (location != null) {
+                Log.e(TAG, "Get Location - location != null");
                 Log.d(TAG, "GPS is on");
                 latitude = location.getLatitude();
                 longitude = location.getLongitude();
-                Log.d(TAG, "\n\nlatitude:" + latitude + " longitude:" + longitude + "\n\n");
+                Log.e(TAG, "\n\nlatitude:" + latitude + " longitude:" + longitude + "\n\n");
                 //Toast.makeText(AlertIntentService.this, "latitude:" + latitude + " longitude:" + longitude, Toast.LENGTH_SHORT).show();
             }
+
             else{
-                //Log.e(TAG,"GPS: " + Long.valueOf(gpsTime) +" "+ Long.valueOf(gpsDist) );
-                locationManager.requestLocationUpdates(bestProvider, Long.valueOf(gpsTime) , Long.valueOf(gpsDist), this);
-            }
+            */
+            latitude = location.getLatitude();
+            longitude = location.getLongitude();
+                Log.e(TAG, "Get Location - else - location manager");
+            locationManager.requestLocationUpdates(bestProvider, Long.valueOf(gpsTime), Long.valueOf(gpsDist), AlertIntentService.this);
+
+            Log.e(TAG, "\n\nlatitude:" + latitude + " longitude:" + longitude + "\n\n");
+            //}
         }
         else
         {

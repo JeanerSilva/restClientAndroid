@@ -60,8 +60,6 @@ public class HttpPostAsyncTask extends AsyncTask<String, Void, Void> {
            int statusCode = urlConnection.getResponseCode();
           if (statusCode ==  200) {
               Log.d (TAG, "Statuscode 200" );
-
-
               InputStream responseBody = urlConnection.getInputStream();
               InputStreamReader responseBodyReader =
                       new InputStreamReader(responseBody, "UTF-8");
@@ -71,7 +69,7 @@ public class HttpPostAsyncTask extends AsyncTask<String, Void, Void> {
                          callback.completionHandler(true, type, null);
                          break;
                      case REFRESH_POS:
-                         callback.completionHandler(true, type, null);
+                         callback.completionHandler(true, type, "Concluído.");
                          break;
                      case TRAKERPOS_PULL:
                       Log.d (TAG, "TRACKERPOS" );
@@ -89,8 +87,7 @@ public class HttpPostAsyncTask extends AsyncTask<String, Void, Void> {
                   case ALERT_PULL:
                       Log.d (TAG, "ALERT" );
                       final List<Alert> alertaList = new ArrayList<>();
-                      Alert alert = new Alert("Pos", "Mov", "Giro", "Time");
-                      alertaList.add(alert);
+                      Alert alert = new Alert();
                       jsonReader.beginArray();
                       while (jsonReader.hasNext()) {
                           alert = readerAlert(jsonReader);
@@ -128,7 +125,10 @@ public class HttpPostAsyncTask extends AsyncTask<String, Void, Void> {
                          Log.d(TAG, "Config: "+ config);
                          callback.completionHandler(true, type, config);
                          break;
-
+                     case CONFIG_PUBLISH:
+                        Log.d(TAG, "CONFIG_PUBLISH");
+                        callback.completionHandler(true, type, "Configurações salvas no servidor.");
+                         break;
                   default:
                       break;
               }
@@ -138,10 +138,12 @@ public class HttpPostAsyncTask extends AsyncTask<String, Void, Void> {
 
             } else {
               Log.d(TAG,"Código <> 200");
+              callback.completionHandler(true, type, "Erro no servidor. ");
             }
 
         } catch (Exception e) {
             Log.d(TAG, e.getLocalizedMessage());
+            callback.completionHandler(true, type, "Erro. " + e.getMessage());
         }
         return null;
 
@@ -149,18 +151,15 @@ public class HttpPostAsyncTask extends AsyncTask<String, Void, Void> {
 
     public Alert readerAlert (JsonReader reader) throws IOException {
         String pos = null;
-        String giro = null;
-        String mov = null;
+        String font = null;
         String time = null;
         reader.beginObject();
         while (reader.hasNext()) {
             String name = reader.nextName();
             if (name.equals("pos")) {
                 pos = reader.nextString();
-            } else if (name.equals("giro")) {
-                giro = reader.nextString();
-            } else if (name.equals("mov")) {
-                mov = reader.nextString();
+            } else if (name.equals("font")) {
+                font = reader.nextString();
             } else if (name.equals("time")) {
                 time = reader.nextString();
             } else {
@@ -168,7 +167,7 @@ public class HttpPostAsyncTask extends AsyncTask<String, Void, Void> {
             }
         }
         reader.endObject();
-        return new Alert(pos, giro, mov, time);
+        return new Alert(pos, font, time);
     }
 
 

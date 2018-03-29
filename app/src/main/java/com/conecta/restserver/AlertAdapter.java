@@ -35,20 +35,16 @@ public class AlertAdapter extends ArrayAdapter<Alert> {
 
         if (p != null) {
             TextView pos = (TextView) v.findViewById(R.id.posTxtView);
-            TextView giro = (TextView) v.findViewById(R.id.giroTxtView);
-            TextView mov = (TextView) v.findViewById(R.id.movTxtView);
+            TextView font = (TextView) v.findViewById(R.id.fontTxtView);
             TextView time = (TextView) v.findViewById(R.id.timeTxtView);
             if (pos != null) {
                 pos.setText(p.getPos());
             }
 
-            if (giro != null) {
-                giro.setText(p.getGiro());
+            if (font != null) {
+                font.setText(p.getFont());
             }
 
-            if (mov != null) {
-                mov.setText(p.getMov());
-            }
             if (time != null) {
                 time.setText(p.getTime());
             }

@@ -70,10 +70,14 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                 case TRAKERPOS_PULL:
                     runOnUiThread(new Runnable() {
                         public void run() {
-                            trackerPosList.clear();
+                            if (object instanceof String) {
+                                Toast.makeText(MainActivity.this, object.toString(), Toast.LENGTH_SHORT).show();
+                            } else {
+                                trackerPosList.clear();
                             trackerPosList.addAll((List<TrackerPos>) object);
                             adapterTracker.notifyDataSetChanged();
                             Toast.makeText(MainActivity.this, "Obtida lista de posições", Toast.LENGTH_SHORT).show();
+                            }
                         }
                     });
                     break;
@@ -83,6 +87,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                         @Override
                         public void run() {
                             Log.d(TAG, "REFRESH");
+                            Toast.makeText(MainActivity.this, "Posições deletadas.", Toast.LENGTH_SHORT).show();
                             pullPosButton.performClick();
                         }
                     });
@@ -92,8 +97,8 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            Log.d(TAG, "CONFIG_PUBLISH");
-                            checkService.performClick();
+                            Log.d(TAG, "CONFIG_PUBLISH Main");
+                            Toast.makeText(MainActivity.this, object.toString(), Toast.LENGTH_SHORT).show();
                         }
                     });
                     break;
@@ -110,14 +115,18 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                 case CONFIG_PULL:
                     runOnUiThread(new Runnable() {
                         public void run() {
-                            Config config = (Config) object;
-                            switchGiro.setChecked(config.getGiroStatus().toString().equals("on") ? true : false);
-                            switchGps.setChecked(config.getGpsStatus().toString().equals("on") ? true : false);
-                            gpsTime.setText(config.getGpsTime());
-                            gpsDist.setText(config.getGpsDist());
-                            giroSense.setText(config.getGiroSense());
-                            Log.d(TAG,"Config: " + config.toString());
-                            Toast.makeText(MainActivity.this, "Obtidas as configurações no servidor.", Toast.LENGTH_SHORT).show();;
+                            if (object instanceof String) {
+                                Toast.makeText(MainActivity.this, object.toString(), Toast.LENGTH_SHORT).show();
+                            } else {
+                                Config config = (Config) object;
+                                switchGiro.setChecked(config.getGiroStatus().toString().equals("on") ? true : false);
+                                switchGps.setChecked(config.getGpsStatus().toString().equals("on") ? true : false);
+                                gpsTime.setText(config.getGpsTime());
+                                gpsDist.setText(config.getGpsDist());
+                                giroSense.setText(config.getGiroSense());
+                                Log.d(TAG, "Config: " + config.toString());
+                                Toast.makeText(MainActivity.this, "Obtidas as configurações no servidor.", Toast.LENGTH_SHORT).show();
+                            }
                         }
                     });
                     break;
@@ -283,6 +292,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
 
         deleteButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                Log.d(TAG, "Deletando posições");
             new HttpPostAsyncTask(postData, RequestType.REFRESH_POS, callback)
                        .execute(baseURL + deletePosString + "?entity=" + entity);
             }
@@ -321,15 +331,6 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                     Toast.makeText(MainActivity.this,
                             "Não foi possível iniciar o serviço.",Toast.LENGTH_SHORT).show();
                 }
-                /*
-                Intent serviceIntent = new Intent(MainActivity.this, AlertIntentService.class);
-                serviceIntent.putExtra("gpsDist", gpsDist.getText().toString());
-                serviceIntent.putExtra("gpsTime", gpsTime.getText().toString());
-                serviceIntent.putExtra("giroSense", giroSense.getText().toString());
-
-                //serviceIntent.putExtra("transmiter", transmit);
-                startService(serviceIntent);
-                */
             }
         });
 

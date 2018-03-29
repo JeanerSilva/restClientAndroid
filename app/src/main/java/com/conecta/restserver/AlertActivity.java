@@ -41,11 +41,15 @@ public class AlertActivity extends AppCompatActivity implements AdapterView.OnIt
                 case ALERT_PULL:
                     runOnUiThread(new Runnable() {
                         public void run() {
-                            alertaList.clear();
-                            alertaList.addAll((List<Alert>) object);
-                            adapterAlert.notifyDataSetChanged();
-                            Log.d(TAG, "alertaLIst" + alertaList.toString());
-                            Toast.makeText(AlertActivity.this, "Obtida lista de alertas", Toast.LENGTH_SHORT).show();
+                            if (object instanceof String) {
+                                Toast.makeText(AlertActivity.this, object.toString(), Toast.LENGTH_SHORT).show();
+                            } else {
+                                alertaList.clear();
+                                alertaList.addAll((List<Alert>) object);
+                                adapterAlert.notifyDataSetChanged();
+                                Log.d(TAG, "alertaLIst" + alertaList.toString());
+                                Toast.makeText(AlertActivity.this, "Obtida lista de alertas", Toast.LENGTH_SHORT).show();
+                            }
                         }
                     });
                     break;
