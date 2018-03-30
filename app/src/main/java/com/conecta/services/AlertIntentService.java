@@ -64,7 +64,7 @@ public class AlertIntentService extends IntentService implements SensorEventList
     NotificationManager notificationManager;
     NotificationCompat.Builder notificationBuilder;
     String NOTIFICATION_CHANNEL_ID1 = "my_channel_id_01";
-    String NOTIFICATION_CHANNEL_ID2 = "my_channel_id_01";
+    String NOTIFICATION_CHANNEL_ID2 = "my_channel_id_02";
     String timerInterval;
 
     CustomCallback callback = new CustomCallback() {
