@@ -7,6 +7,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
+import android.hardware.Sensor;
+import android.hardware.SensorManager;
 import android.os.IBinder;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -34,13 +36,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
+
 import static com.conecta.models.AppConfig.*;
 
 public class MainActivity extends AppCompatActivity implements CustomCallback {
     String TAG = "RestMain";
 
     private EditText gpsDist, gpsTime, timerInterval, giroSense;
-    TextView timerStatus;
+    TextView timerStatus, gpsPosTxt;
     Button pullPosButton, callAlertActivity;
     Button stopService, startService, checkService, saveConfig;
     Switch switchGiro, switchGps, switchTransmit, switchWhatsApp;
@@ -52,6 +57,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
     OperationMode operationMode;
     boolean configReady;
     boolean mBound = false;
+    Timer timer;
 
     //String posListener = "0.0,0.0";
     CustomCallback callback = new CustomCallback() {
@@ -146,24 +152,25 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                 Toast.makeText(MainActivity.this, "O serviço está rodando", Toast.LENGTH_SHORT).show();
             }
         }
-        Toast.makeText(MainActivity.this, "O serviço parado", Toast.LENGTH_SHORT).show();
+        Toast.makeText(MainActivity.this, "O serviço está parado", Toast.LENGTH_SHORT).show();
     }
 
 
     @Override
     protected void onStart() {
         super.onStart();
-        checkService.performClick();
+        //checkService.performClick();
     }
-
+    /*
     @Override
     protected void onStop() {
         super.onStop();
         if (mBound) {
             unbindService(mConnection);
             mBound = false;
-       }
+        }
     }
+    */
 
     /** Defines callbacks for service binding, passed to bindService() */
     private ServiceConnection mConnection = new ServiceConnection() {
@@ -188,9 +195,9 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        Intent intent = new Intent(this, AlertIntentService.class);
-        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+
         timerStatus = findViewById(R.id.timerStatusTxt);
+        gpsPosTxt = findViewById(R.id.gpsPosTxt);
 
         setContentView(R.layout.activity_main);
         Log.d(TAG, "onCreate ");
@@ -286,26 +293,69 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
         stopService.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 Log.d(TAG, "Stop Service");
+                //mService.stopTimer();
                 mService.stopTimer();
-               // stopService(new Intent(MainActivity.this, AlertIntentService.class));
+
+                if (null != timer) timer.cancel();
+                stopService(new Intent(MainActivity.this, AlertIntentService.class));
 
             }
         });
 
         startService.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                Intent intent = new Intent(MainActivity.this, AlertIntentService.class);
+                bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
                 Log.d(TAG, "Start Service");
                 if (mBound) {
                    operationMode = switchTransmit.isChecked() ? OperationMode.TRANSMITER : OperationMode.RECEPTOR;
-                    String whatsAppT = switchWhatsApp.isChecked() ? "whatsapp" : "";
-                   Toast.makeText(MainActivity.this,
-                           mService.startTimer(Long.parseLong(timerInterval.getText().toString()), operationMode,
-                                   gpsDist.getText().toString(), gpsTime.getText().toString(), whatsAppT),
-                           Toast.LENGTH_SHORT).show();
+                   String whatsAppT = switchWhatsApp.isChecked() ? "whatsapp" : "";
+                   //Intent intent = new Intent(MainActivity.this, AlertIntentService.class);
+                   Bundle b = new Bundle();
+                   b.putString("timerinterval", timerInterval.getText().toString());
+                   b.putString("operationalmode", operationMode.toString());
+                   b.putString("gpsdist", gpsDist.getText().toString());
+                   b.putString("gpstime", gpsTime.getText().toString());
+                   b.putString("whatsappT", whatsAppT);
+                   intent.putExtras(b);
+
+                   startService(intent);
+
+                    timer = new Timer();
+                    timer.scheduleAtFixedRate(
+                            new TimerTask() {
+                                @Override
+                                public void run() {
+                                    runOnUiThread(new Runnable() {
+                                        public void run() {
+                                            String gpsLocation = mService.getCurrentLocation() == null ? "null" : mService.getCurrentLocation();
+                                            Log.d(TAG, "gpsLocation: " + gpsLocation);
+                                            Toast.makeText(MainActivity.this,
+                                                    gpsLocation,Toast.LENGTH_SHORT).show();
+                                            // timerStatus.setText("dd");
+                                        }
+                                    });
+                                 }
+                            },
+                            3000, 3000);
+
+                   //Toast.makeText(MainActivity.this,
+                   //        mService.startTimer(Long.parseLong(timerInterval.getText().toString()), operationMode,
+                   //                gpsDist.getText().toString(), gpsTime.getText().toString(), whatsAppT),
+                   //        Toast.LENGTH_SHORT).show();
                 } else {
                     Toast.makeText(MainActivity.this,
                             "Não foi possível iniciar o serviço.",Toast.LENGTH_SHORT).show();
                 }
+                /*
+                try {
+                    Log.d(TAG, "Start Service");
+                    startService(new Intent(MainActivity.this, MyService.class));
+                } catch (Exception e)
+                {
+                    Log.e(TAG, e.getMessage());
+                }
+                */
             }
         });
 
@@ -343,7 +393,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
         }
 
         Log.d(TAG, "Busca Config ");
-
+        checkService.performClick();
     }
 
     @Override
