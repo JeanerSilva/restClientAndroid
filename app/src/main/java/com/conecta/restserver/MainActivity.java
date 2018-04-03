@@ -7,8 +7,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
-import android.hardware.Sensor;
-import android.hardware.SensorManager;
 import android.os.IBinder;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -46,7 +44,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
 
     private EditText gpsDist, gpsTime, timerInterval, giroSense;
     TextView timerStatus, gpsPosTxt;
-    Button pullPosButton, callAlertActivity;
+    Button pullPosButton, callAlertActivityButton, clearPosButton;
     Button stopService, startService, checkService, saveConfig;
     Switch switchGiro, switchGps, switchTransmit, switchWhatsApp;
     AlertIntentService mService;
@@ -58,6 +56,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
     boolean configReady;
     boolean mBound = false;
     Timer timer;
+    volatile boolean gotConfig;
 
     //String posListener = "0.0,0.0";
     CustomCallback callback = new CustomCallback() {
@@ -105,7 +104,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                         @Override
                         public void run() {
                             Log.d(TAG, "REFRESH");
-                            callAlertActivity.performClick();
+                            callAlertActivityButton.performClick();
                         }
                     });
                     break;
@@ -126,7 +125,16 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                                 Log.d(TAG, "Config: " + config.toString());
                                 Toast.makeText(MainActivity.this, "Obtidas as configurações no servidor.",
                                         Toast.LENGTH_SHORT).show();
-                                startService.performClick();
+                                gotConfig = true;
+                                startService.setEnabled(true);
+                                stopService.setEnabled(true);
+                                saveConfig.setEnabled(true);
+                                pullPosButton.setEnabled(true);
+                                callAlertActivityButton.setEnabled(true);
+                                clearPosButton.setEnabled(true);
+
+
+                                //startService.performClick();
                             }
                         }
                     });
@@ -159,7 +167,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
     @Override
     protected void onStart() {
         super.onStart();
-        //checkService.performClick();
+        checkService.performClick();
     }
     /*
     @Override
@@ -210,14 +218,14 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
         timerInterval = findViewById(R.id.timerInterval);
         giroSense = findViewById(R.id.giroSenseTxt);
 
-        callAlertActivity = findViewById(R.id.alertButton);
+        callAlertActivityButton = findViewById(R.id.alertButton);
         pullPosButton = findViewById(R.id.pullPosButton);
         stopService = findViewById(R.id.stopServiceButton);
         startService = findViewById(R.id.startServiceButton);
         stopService = findViewById(R.id.stopServiceButton);
         saveConfig = findViewById(R.id.saveConfigButton);
         checkService = findViewById(R.id.checkService);
-        Button deleteButton = findViewById(R.id.deleteButton);
+        clearPosButton = findViewById(R.id.clearPosButton);
 
         switchGiro = findViewById(R.id.giroAlertSwitsh);
         switchGps = findViewById(R.id.switchGps);
@@ -226,6 +234,14 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
         switchTransmit.setChecked(true);
 
         final ListView trackerList = findViewById(R.id.lista);
+
+        startService.setEnabled(false);
+        stopService.setEnabled(false);
+        saveConfig.setEnabled(false);
+        pullPosButton.setEnabled(false);
+        callAlertActivityButton.setEnabled(false);
+        clearPosButton.setEnabled(false);
+
 
         saveConfig.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
@@ -252,7 +268,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
         trackerList.setAdapter(adapterTracker);
 
         //Abre o mapa
-        trackerList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+       trackerList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
                 Log.d(TAG, "i: " + i);
@@ -267,18 +283,18 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                 intent.putExtras(b);
                 startActivity(intent);
             }
-        });
+       });
 
-        deleteButton.setOnClickListener(new View.OnClickListener() {
+        clearPosButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 Log.d(TAG, "Deletando posições");
             new HttpPostAsyncTask(postData, RequestType.REFRESH_POS, callback)
                        .execute(baseURL + deletePosString + "?entity=" + entity);
             }
-        });
+       });
 
 
-        checkService.setOnClickListener(new View.OnClickListener() {
+       checkService.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 Log.d(TAG, "Check Service");
                 isMyServiceRunning(AlertIntentService.class);
@@ -286,8 +302,10 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                         .execute(baseURL + configString
                                 + "?entity=" + entityConfig
                                 + "&action=pull");
+
+
             }
-        });
+       });
 
 
         stopService.setOnClickListener(new View.OnClickListener() {
@@ -309,14 +327,11 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                 Log.d(TAG, "Start Service");
                 if (mBound) {
                    operationMode = switchTransmit.isChecked() ? OperationMode.TRANSMITER : OperationMode.RECEPTOR;
-                   String whatsAppT = switchWhatsApp.isChecked() ? "whatsapp" : "";
-                   //Intent intent = new Intent(MainActivity.this, AlertIntentService.class);
                    Bundle b = new Bundle();
                    b.putString("timerinterval", timerInterval.getText().toString());
                    b.putString("operationalmode", operationMode.toString());
                    b.putString("gpsdist", gpsDist.getText().toString());
                    b.putString("gpstime", gpsTime.getText().toString());
-                   b.putString("whatsappT", whatsAppT);
                    intent.putExtras(b);
 
                    startService(intent);
@@ -326,18 +341,26 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
                             new TimerTask() {
                                 @Override
                                 public void run() {
-                                    runOnUiThread(new Runnable() {
-                                        public void run() {
-                                            String gpsLocation = mService.getCurrentLocation() == null ? "null" : mService.getCurrentLocation();
-                                            Log.d(TAG, "gpsLocation: " + gpsLocation);
-                                            Toast.makeText(MainActivity.this,
-                                                    gpsLocation,Toast.LENGTH_SHORT).show();
-                                            // timerStatus.setText("dd");
-                                        }
-                                    });
+                                    if (switchTransmit.isChecked()) {
+                                        runOnUiThread(new Runnable() {
+                                            public void run() {
+                                                String gpsLocation = mService.getCurrentLocation() == null ? "null" : mService.getCurrentLocation();
+                                                Log.d(TAG, "gpsLocation: " + gpsLocation);
+                                                Toast.makeText(MainActivity.this,
+                                                        gpsLocation, Toast.LENGTH_SHORT).show();
+                                                // timerStatus.setText("dd");
+                                            }
+                                        });
+                                    }
+                                    if (!switchTransmit.isChecked() && switchWhatsApp.isChecked()) {
+                                        postData.put("entity", entity);
+                                        new HttpPostAsyncTask(postData, RequestType.TRAKERPOS_PULL, callback)
+                                                .execute(baseURL + pullPosString + "?entity=" + entity);
+                                    }
+
                                  }
                             },
-                            3000, 3000);
+                            Long.parseLong(timerInterval.getText().toString()), Long.parseLong(timerInterval.getText().toString()));
 
                    //Toast.makeText(MainActivity.this,
                    //        mService.startTimer(Long.parseLong(timerInterval.getText().toString()), operationMode,
@@ -359,7 +382,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
             }
         });
 
-        callAlertActivity.setOnClickListener(new View.OnClickListener() {
+        callAlertActivityButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 Intent intent = new Intent(MainActivity.this, AlertActivity.class);
 
@@ -381,6 +404,9 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
             }
         });
 
+        //Log.d(TAG, "Busca Config ");
+        //checkService.performClick();
+
         if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
                 && ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(MainActivity.this,
@@ -392,8 +418,7 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
             return;
         }
 
-        Log.d(TAG, "Busca Config ");
-        checkService.performClick();
+
     }
 
     @Override

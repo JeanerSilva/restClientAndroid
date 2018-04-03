@@ -83,7 +83,7 @@ public class AlertActivity extends AppCompatActivity implements AdapterView.OnIt
 
         Button deleteButton;
         pullAlertButton = findViewById(R.id.atualizaAlerta);
-        deleteButton = findViewById(R.id.deleteButton);
+        deleteButton = findViewById(R.id.clearPosButton);
 
         deleteButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
