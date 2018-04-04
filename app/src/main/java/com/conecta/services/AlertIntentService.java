@@ -1,6 +1,5 @@
 package com.conecta.services;
 
-import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.IntentService;
 import android.app.Notification;
@@ -8,7 +7,6 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Intent;
 import android.content.Context;
-import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -18,14 +16,12 @@ import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
-import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.Settings;
 import android.support.annotation.Nullable;
-import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 import android.widget.Toast;
@@ -34,12 +30,9 @@ import com.conecta.enums.RequestType;
 import com.conecta.models.Alert;
 import com.conecta.models.Config;
 import com.conecta.models.TrackerPos;
-import com.conecta.restserver.AlertActivity;
-import com.conecta.restserver.MainActivity;
 import com.conecta.restserver.R;
 import com.conecta.util.CustomCallback;
 import com.conecta.util.HttpPostAsyncTask;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -363,13 +356,15 @@ public class AlertIntentService extends IntentService implements SensorEventList
         final Float _x = event.values[0];
         final Float _y = event.values[1];
         final Float _z = event.values[2];
+
+
         if (x == 0.0f) {
             x = _x;y = _y;z = _z;
         } else {
 
-            if (null != giroSense && giroAlert.equals("on") && operationMode == OperationMode.TRANSMITER) {
+            if (null != giroSense && giroAlert.equals("on")
+                    && operationMode == OperationMode.TRANSMITER) {
                 Float sense = Float.parseFloat(giroSense);
-                //Log.e(TAG, " onSensorChanged() - giroAlert: " + giroAlert);
                 if ((x - _x > sense || y - _y > sense || z - _z > sense)) {
                     Log.e(TAG, " onSensorChanged() - giroAlert: " + giroAlert);
                     x = _x;y = _y;z = _z;
@@ -432,7 +427,7 @@ public class AlertIntentService extends IntentService implements SensorEventList
         locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
         Criteria criteria = createFineCriteria();
         bestProvider = String.valueOf(locationManager.getBestProvider(criteria, true));
-        @SuppressLint("Missingfrmission") Location location = locationManager.getLastKnownLocation(bestProvider);
+        @SuppressLint({"Missingfrmission", "MissingPermission"}) Location location = locationManager.getLastKnownLocation(bestProvider);
         posListener = String.valueOf(latitude + "," + longitude);
         return location;
     }

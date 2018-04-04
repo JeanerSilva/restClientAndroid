@@ -20,7 +20,6 @@ import android.widget.ListView;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import com.conecta.adapters.TrackerAdapter;
 import com.conecta.enums.OperationMode;
 import com.conecta.enums.RequestType;
@@ -29,7 +28,6 @@ import com.conecta.models.TrackerPos;
 import com.conecta.services.AlertIntentService;
 import com.conecta.util.CustomCallback;
 import com.conecta.util.HttpPostAsyncTask;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -322,10 +320,15 @@ public class MainActivity extends AppCompatActivity implements CustomCallback {
 
         startService.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                Thread thread = new Thread();
+
                 Intent intent = new Intent(MainActivity.this, AlertIntentService.class);
                 bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
                 Log.d(TAG, "Start Service");
-                if (mBound) {
+
+
+                //if (mBound) {
+                if (true) {
                    operationMode = switchTransmit.isChecked() ? OperationMode.TRANSMITER : OperationMode.RECEPTOR;
                    Bundle b = new Bundle();
                    b.putString("timerinterval", timerInterval.getText().toString());
